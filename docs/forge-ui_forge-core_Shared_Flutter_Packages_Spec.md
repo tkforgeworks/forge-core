@@ -1,6 +1,6 @@
 # forge-ui & forge-core: Shared Flutter Packages Spec
 
-Oct 8, 2026 · @Tim Klimpel · Status: Approved, ready to start · Revised Oct 10, 2026 (spec pass, forge-ui v0.1 build)
+Oct 8, 2026 · @Tim Klimpel · Status: Approved, ready to start · Revised Oct 10, 2026 (spec pass, forge-ui v0.1 build, release method)
 
 ## Purpose and goals
 
@@ -264,7 +264,7 @@ Requirements every app meets before release:
 
 ## Repos, versioning and distribution
 
-Each package lives in its own repo (`tkforgeworks/forge-ui`, `tkforgeworks/forge-core`) and apps consume it as a git dependency pinned to a release tag.
+Each package lives in its own repo (`tkforgeworks/forge-ui`, `tkforgeworks/forge-core`) and apps consume it as a git dependency pinned to an exact release tag.
 
 ```yaml
 dependencies:
@@ -274,7 +274,9 @@ dependencies:
       ref: v0.1.0
 ```
 
-- **Semantic version tags.** Bumping an app's tag is the only way it picks up brand changes.
+- **Semantic version tags, pinned exactly.** An app names one tag, so changing that line is the only way it picks up brand changes. Version-range constraints on the git dependency were considered and turned down.
+- **Release candidates.** `vX.Y.Z-rc.N` tags are cut from the release branch so an app can adopt and test a version before its stable tag exists.
+- **Releases come from the org Flutter release pipeline** with both platform builds off. A package release is a tag and a GitHub release whose notes are the commit subjects; there are no files to attach.
 - **Additive changes.** New parameters get defaults, so an app can move to a newer tag without touching its screens. Breaking changes bump the major version and come with a migration note.
 - **Showcase app in the `forge-ui` repo.** It renders every component in light and dark with two or three seed colors. Run it before tagging; it also serves as reference for Claude Code when building new screens.
 - **Tests.** Widget golden tests for the showcase; unit tests for `forge-core` with a mocked Supabase client.
@@ -315,7 +317,7 @@ Work runs in five steps, with the cheese app as the first real consumer before a
 2. **forge-ui v0.1.** Theme builder, tokens, base components, about screen, showcase in light and dark with three seeds.
 3. **forge-core v0.1.** Native Google and Apple sign-in on iOS, Google native on Android (Apple on Android comes later), session state, jsonb repository helper, and the `accounts` table with its trigger and the `forge_account_active()` policy helper (the `entries` policy depends on them). forge-ui v0.2 ships the sign-in screen alongside.
 4. **Account and privacy v0.2.** Identity linking, deletion Edge Function with Apple revocation and scheduled retry, privacy policy template, base data inventory, web deletion page and request form. forge-ui v0.3 ships the account settings page alongside.
-5. **Adopt.** Move the cheese app onto both packages before its first store release (its photo storage stays app-side for now), fix what that exposes, tag v1.0, then start the new app on v1.0.
+5. **Adopt.** Move the cheese app onto both packages, fix what that exposes, tag v1.0, then start the new app on v1.0. The cheese app's 0.1.0 store release ships first, on its own copies of the shared code, so a refactor of every screen does not hold it up. It adopts forge-ui in 0.1.1 (CHEESE-48), against release candidates until forge-ui v0.1.0 is final, and forge-core when it adds accounts and sync (CHEESE-11). Its photo storage stays app-side for now.
 
 Later, outside these milestones: Apple sign-in on Android and web, shipped together with the client secret rotation job.
 
@@ -348,6 +350,7 @@ All review decisions are settled and reflected in the sections above.
 | Sync helper | Out of v1; promoted only when a second app needs it | Scope, Data model |
 | Web deletion page | Lives in the website repo; `forge-core` ships only the Edge Functions behind it | Account deletion |
 | Policy pages | `tkforgeworks.com/policy/<app>` for the privacy policy; `policy/<app>/delete-account` as its own page with a request form | Account deletion, Privacy |
-| Cheese app | Adopts both packages before its first store release | Milestones |
+| Cheese app | Ships its 0.1.0 store release first; adopts forge-ui in 0.1.1 and forge-core when it adds accounts and sync | Milestones |
+| Consuming a release | An exact tag in the app's git dependency, with release candidates for adoption; no version ranges | Repos, versioning and distribution |
 
 Still open: the seed color for each existing app. It doesn't block forge-ui v0.1, since the showcase uses sample seeds.

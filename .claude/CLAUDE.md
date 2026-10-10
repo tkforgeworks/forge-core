@@ -101,18 +101,24 @@ Decisions table lists them).
 2. forge-ui v0.2 ships the sign-in screen alongside this repo's v0.1, and
    forge-ui v0.3 the account settings page alongside v0.2, so shape the
    public API with those callbacks in mind.
+3. First consumer: the cheese app adopts this package when it adds accounts
+   and sync (its epic CHEESE-11), not before. It adopts forge-ui earlier, in
+   its 0.1.1 (CHEESE-48).
 
 ## Open items (repo and process)
 
 - **Jira project.** None exists for forge-core; the owner will set one up
   later. Then update the conventions above and remove the deviation in
   `.github/org-standards.yml`.
-- **Release pipeline.** Adopt at the start of v0.1.0 work: a `release.yml`
-  calling `release-flutter.yml@main` with `build-windows: false` and
-  `build-android: false`, the vendored `scripts/release/bump-version.{ps1,sh}`,
-  and the `JIRA_BASE_URL` variable. No org repo has run that workflow with
-  both builds off, so test it with an RC. It needs a `ticket-prefix`, which
-  depends on the Jira project.
+- **Release pipeline.** Adopt at the start of v0.1.0 work, the way forge-ui
+  did (its PR #6 is the model): a `release.yml` calling
+  `release-flutter.yml@main` with `build-windows: false` and
+  `build-android: false`, and the vendored
+  `scripts/release/bump-version.{ps1,sh}`. No `ticket-prefix` and no
+  `JIRA_BASE_URL`: the input is optional since `tkforgeworks/.github` PR #15,
+  and the release notes are then the plain commit subjects. forge-ui's
+  `v0.1.0-rc.1` (2026-10-10) proved the workflow with both builds off. Apps
+  pin an exact tag; release candidates are for adoption.
 - **`v0.0.1/main` still exists.** The `release-branches` ruleset blocks
   deleting any `v*/main` branch, while the org branching doc says to delete
   finished release branches. Removing it means temporarily disabling the
