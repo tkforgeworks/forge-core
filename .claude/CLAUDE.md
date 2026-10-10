@@ -25,8 +25,8 @@ in the repo (including any under `docs/`) must be formatted.
 
 - Branching (org standard, `tkforgeworks/.github/docs/branching-and-release.md`):
   `main` is the released state; work accumulates on the current release branch
-  `vX.Y.Z/main` (currently `v0.0.1/main`, a setup-only batch that ships no
-  tag; `v0.1.0/main` follows); topic branches PR **into the release branch**,
+  `vX.Y.Z/main` (currently `v0.1.0/main`; `v0.0.1` was a setup-only batch
+  that shipped no tag); topic branches PR **into the release branch**,
   never into `main`; the release branch reaches `main` via a release PR.
 - `main` is protected by the org repository ruleset: PR-only, no force-push or
   deletion, **no bypass actors** (not even admins). Required check: `ci / ci`.
@@ -68,5 +68,64 @@ in the repo (including any under `docs/`) must be formatted.
 
 ## Current status
 
-Org standards setup landed in the `v0.0.1` batch. Next: work through the open
-gaps in the spec and settle the v1 design before any package code is written.
+As of 2026-10-10: org standards setup is on `main` (the `v0.0.1` batch), both
+rulesets are active, and `v0.1.0/main` is cut with nothing on it yet. The
+package is an empty skeleton with one placeholder test. No package code is
+written until the spec is settled.
+
+## Next actions
+
+1. **Settle the spec gaps below with the owner**, one at a time, and write
+   each decision into the spec. This comes before any package work.
+2. Land the revised spec through a topic PR into `v0.1.0/main`.
+3. Only then start v0.1.0 work (spec milestone 3). The first topic PR also
+   sets `pubspec.yaml` to `0.1.0+1` and adopts the release pipeline (see
+   open items).
+
+## Spec gaps to settle
+
+Found on the first read of the spec. The first two shape the v0.2 deletion
+design and the `entries` conventions v0.1 fixes, so settle them first.
+
+1. **"Stop serving the account's data" has no mechanism.** The `entries`
+   policy only checks `auth.uid() = user_id`, and an access token stays valid
+   after sign-out until it expires. Likely needs the policy to also check
+   `accounts.deletion_requested_at`, on tables the apps own.
+2. **Storage cleanup conflicts with drift enforcement.** The purge must
+   delete an app's Storage files, but apps may not edit the synced function.
+   Needs a config hook (env-listed buckets or a path convention).
+3. **Server state with no table:** the Apple refresh token, the single-use
+   web-deletion confirmation tokens, and the optional display name.
+4. **`accounts` is underspecified:** how rows are created (trigger on
+   `auth.users`?) and what its row-level security is, including how the
+   client is allowed to set `deletion_requested_at`.
+5. **Purge retry has no trigger.** "Retried until it succeeds" names nothing
+   that drives it (scheduled job, database webhook).
+6. **The dirty-flag sync helper is in no milestone**, and only the cheese app
+   uses it, which sits badly with the rule of three.
+7. **Where the web deletion page lives is unstated.** Assumed: the page is in
+   the website repo and only the Edge Functions behind it live here.
+8. **The spec says to set a license field in `pubspec.yaml`.** Pubspec has
+   none; the org licensing doc says pub reads `LICENSE`. Correct the spec.
+
+## Open items (repo and process)
+
+- **Jira project.** None exists for forge-core; the owner will set one up
+  later. Then update the conventions above and remove the deviation in
+  `.github/org-standards.yml`.
+- **Release pipeline.** Adopt at the start of v0.1.0 work: a `release.yml`
+  calling `release-flutter.yml@main` with `build-windows: false` and
+  `build-android: false`, the vendored `scripts/release/bump-version.{ps1,sh}`,
+  and the `JIRA_BASE_URL` variable. No org repo has run that workflow with
+  both builds off, so test it with an RC. It needs a `ticket-prefix`, which
+  depends on the Jira project.
+- **`v0.0.1/main` still exists.** The `release-branches` ruleset blocks
+  deleting any `v*/main` branch, while the org branching doc says to delete
+  finished release branches. Removing it means temporarily disabling the
+  ruleset; that is the owner's call, and the conflict is worth raising in
+  `tkforgeworks/.github`.
+- **Dependabot targets `main` by default**, which bypasses the release-branch
+  flow. Decide whether to set `target-branch` in `.github/dependabot.yml`
+  (the org template does not).
+- **Placeholder test.** `test/forge_core_test.dart` exists only because
+  `flutter test` fails with no tests. Replace it with real tests in v0.1.0.
