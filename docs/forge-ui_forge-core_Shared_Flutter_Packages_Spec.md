@@ -1,6 +1,6 @@
 # forge-ui & forge-core: Shared Flutter Packages Spec
 
-Oct 8, 2026 · @Tim Klimpel · Status: Approved, ready to start · Revised Oct 10, 2026 (spec pass)
+Oct 8, 2026 · @Tim Klimpel · Status: Approved, ready to start · Revised Oct 10, 2026 (spec pass, forge-ui v0.1 build)
 
 ## Purpose and goals
 
@@ -49,28 +49,35 @@ ThemeData forgeTheme({
   required Color seed,
   Color? accent,
   Brightness brightness = Brightness.light,
+  ColorScheme? colorScheme,
+  ForgeTokens? tokens,
+  Iterable<ThemeExtension> extensions = const [],
 }) {
-  final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: brightness);
+  final scheme = colorScheme ?? forgeColorScheme(seed: seed, brightness: brightness);
+  final forge = tokens ?? ForgeTokens.standard(scheme, accent: accent);
   return ThemeData(
     colorScheme: scheme,
-    textTheme: ForgeType.textTheme,
-    filledButtonTheme: ForgeButtons.filled,
-    cardTheme: ForgeCards.theme,
-    extensions: [ForgeTokens.standard(scheme, accent: accent)],
+    textTheme: ForgeType.textTheme(scheme, forge),
+    // ...every component theme: buttons, cards, inputs, chips, sheets, drawer
+    extensions: [forge, ...extensions],
   );
 }
 ```
 
+- **A seed is enough.** `forgeColorScheme` is Material's seeded scheme with quieter outline colors, because the brand draws its borders and dividers as soft lines.
+- **An app with a designed palette passes its own `colorScheme` and `tokens`**, one pair per brightness. The brand's type, shapes and component themes apply on top unchanged. The cheese app does this to keep its cream and rind-amber palette.
+- **`ForgeTokens`** holds the color roles `ColorScheme` has no slot for (tertiary and ghost text, link, row divider, success pair, error tint, skeleton shimmer, accent). An app's own roles go in its own extension, passed through `extensions`.
+
 | Fixed in forge-ui (the brand) | Set per app |
 | --- | --- |
-| Typography and type scale | Seed color, optional accent |
+| Typography and type scale | Seed color, optional accent; or a designed color scheme and tokens |
 | Corner radii, spacing scale, elevation | App icon and name |
 | Button, card, input and dialog shapes |  |
 | Motion durations and curves |  |
 | Icon style (Heroicons, outline) |  |
 | "Made by tkforgeworks" about screen |  |
 
-**Hard rule: shared widgets never hardcode a color.** Every color comes from `Theme.of(context).colorScheme` or the `ForgeTokens` theme extension. One hardcoded color breaks theme swapping for every app.
+**Hard rule: shared widgets never hardcode a color.** Every color comes from `Theme.of(context).colorScheme` or the `ForgeTokens` theme extension. One hardcoded color breaks theme swapping for every app. The one exception is the brand itself: the forge gradient and the colors of the hammer-and-anvil mark are named constants in `ForgeBrand`, identical in every app. A test in the package fails on any other color literal.
 
 **Fonts are fixed and bundled in forge-ui.** Apps don't override them. The three families are the ones the cheese app and the website already use:
 
@@ -92,9 +99,11 @@ v1 widget set, by release:
 
 | Release | Ships | Alongside |
 | --- | --- | --- |
-| forge-ui v0.1 | Theme builder, tokens, buttons, cards, form field styling, confirmation dialog (including the destructive delete confirmation), empty, error and loading states, about screen with privacy policy and deletion links | — |
+| forge-ui v0.1 | Theme builder, tokens and component themes (buttons, cards, inputs, chips, segmented toggle, switch, slider, drawer, sheets); mono label, tag and status capsules, boxed field, confirm sheet (including the destructive delete confirmation), empty, error and loading states, settings group, the gradient FAB, the TK ForgeWorks mark; about screen with privacy policy and deletion links, and the licences summary screen | — |
 | forge-ui v0.2 | Sign-in screen with Google and Apple buttons (callbacks in, no auth logic) | forge-core v0.1 |
 | forge-ui v0.3 | Account settings page: linked sign-in methods, sign out, delete account | forge-core v0.2 |
+
+The v0.1 contents are the generic pieces of the cheese app, promoted as they stand. Its journal field, star rating, flavor wheel and other domain widgets stay in the app.
 
 The two screens that front `forge-core` ship with the `forge-core` release they pair with, so their callbacks are shaped against the real API rather than a guess.
 
@@ -319,6 +328,9 @@ All review decisions are settled and reflected in the sections above.
 | Repo visibility | Public, relying on open-source licenses and future contributors | Repos, versioning and distribution |
 | Naming | Repos hyphenated (`forge-ui`, `forge-core`); Dart packages underscored (`forge_ui`, `forge_core`) | Repos, versioning and distribution |
 | Fonts | Poppins (UI), Source Serif 4 (editorial) and JetBrains Mono (labels), fixed and bundled in `forge-ui` (OFL only); apps don't override | forge-ui design |
+| Color source | A seed by default; an app with a designed palette passes its own `ColorScheme` and `ForgeTokens` | forge-ui design |
+| Brand colors | The forge gradient and the mark's colors are named constants in `ForgeBrand`, the one exception to the no-hardcoded-color rule | forge-ui design |
+| forge-ui v0.1 contents | The cheese app's generic widgets and its about and licences screens; domain widgets stay in the app | forge-ui design |
 | Icon style | Heroicons outline, through the `heroicons` package | forge-ui design |
 | Shared screen timing | About screen in forge-ui v0.1; sign-in screen in v0.2 with forge-core v0.1; account settings in v0.3 with forge-core v0.2 | forge-ui design, Milestones |
 | Hiding a sign-in provider | A null callback leaves the button out | forge-ui design |
