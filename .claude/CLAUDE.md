@@ -6,8 +6,11 @@
 sign-in, account and data plumbing every tkforgeworks app shares, built on
 Supabase. Apps consume it as a git dependency pinned to a release tag. Its
 sibling `forge-ui` carries the brand look; the two packages never depend on
-each other. Current phase: repo setup done, spec being finalized, no package
-code yet. The spec is `docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`.
+each other. Current phase: repo setup done and the v1 spec settled
+(2026-10-10); no package code yet. The spec is
+`docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`. The same file
+lives in `forge-ui/docs/`; the two copies must stay identical, so any spec
+change lands in both repos together.
 
 ## Stack & commands
 
@@ -65,48 +68,39 @@ in the repo (including any under `docs/`) must be formatted.
   repo is public and each app owns its own Supabase project.
 - Code is promoted into the package only when a second app needs it (rule of
   three), so the package doesn't grow speculative API.
+- Every user-owned table's policy is `auth.uid() = user_id and
+  forge_account_active()`, so access ends the moment
+  `accounts.deletion_requested_at` is set, even for an unexpired token.
+- `accounts` rows are created by a trigger on `auth.users`. The client reads
+  only its own row and writes only through security-definer functions
+  (`request_account_deletion()`, and one that sets `display_name`).
+- The purge is attempted when the flag is set and retried by `pg_cron`
+  (through `pg_net`) every 15 minutes.
+- User files in Storage live under `<bucket>/<user_id>/...`; the purge walks
+  every bucket, with no per-app config.
+- The Apple refresh token is a Supabase Vault secret; web-deletion
+  confirmation tokens are stored hashed in a private schema.
+- No sync helper in v1. The web deletion page lives in the website repo;
+  this repo ships only the Edge Functions behind it.
 
 ## Current status
 
 As of 2026-10-10: org standards setup is on `main` (the `v0.0.1` batch), both
-rulesets are active, and `v0.1.0/main` is cut with nothing on it yet. The
-package is an empty skeleton with one placeholder test. No package code is
-written until the spec is settled.
+rulesets are active, and `v0.1.0/main` is cut. The package is an empty
+skeleton with one placeholder test. The spec pass is done: the owner decided
+every gap on 2026-10-10 and the decisions are written into the spec (its
+Decisions table lists them).
 
 ## Next actions
 
-1. **Settle the spec gaps below with the owner**, one at a time, and write
-   each decision into the spec. This comes before any package work.
-2. Land the revised spec through a topic PR into `v0.1.0/main`.
-3. Only then start v0.1.0 work (spec milestone 3). The first topic PR also
-   sets `pubspec.yaml` to `0.1.0+1` and adopts the release pipeline (see
-   open items).
-
-## Spec gaps to settle
-
-Found on the first read of the spec. The first two shape the v0.2 deletion
-design and the `entries` conventions v0.1 fixes, so settle them first.
-
-1. **"Stop serving the account's data" has no mechanism.** The `entries`
-   policy only checks `auth.uid() = user_id`, and an access token stays valid
-   after sign-out until it expires. Likely needs the policy to also check
-   `accounts.deletion_requested_at`, on tables the apps own.
-2. **Storage cleanup conflicts with drift enforcement.** The purge must
-   delete an app's Storage files, but apps may not edit the synced function.
-   Needs a config hook (env-listed buckets or a path convention).
-3. **Server state with no table:** the Apple refresh token, the single-use
-   web-deletion confirmation tokens, and the optional display name.
-4. **`accounts` is underspecified:** how rows are created (trigger on
-   `auth.users`?) and what its row-level security is, including how the
-   client is allowed to set `deletion_requested_at`.
-5. **Purge retry has no trigger.** "Retried until it succeeds" names nothing
-   that drives it (scheduled job, database webhook).
-6. **The dirty-flag sync helper is in no milestone**, and only the cheese app
-   uses it, which sits badly with the rule of three.
-7. **Where the web deletion page lives is unstated.** Assumed: the page is in
-   the website repo and only the Edge Functions behind it live here.
-8. **The spec says to set a license field in `pubspec.yaml`.** Pubspec has
-   none; the org licensing doc says pub reads `LICENSE`. Correct the spec.
+1. Start v0.1.0 work (spec milestone 3): native Google and Apple sign-in,
+   session state, the jsonb repository helper, and the `accounts` table with
+   its trigger and `forge_account_active()`. The first topic PR also sets
+   `pubspec.yaml` to `0.1.0+1` and adopts the release pipeline (see open
+   items).
+2. forge-ui v0.2 ships the sign-in screen alongside this repo's v0.1, and
+   forge-ui v0.3 the account settings page alongside v0.2, so shape the
+   public API with those callbacks in mind.
 
 ## Open items (repo and process)
 
