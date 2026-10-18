@@ -130,8 +130,11 @@ failure(`ForgeAuthError`)) are the plain types. Sign-in providers are
 abstracted behind sources (`GoogleIdTokenSource`) so the auth logic is unit
 tested with a scripted source and a `GoTrueClient` over `http`'s
 `MockClient` (no network, no platform plugin; give it an in-memory
-`GotrueAsyncStorage` or the PKCE calls assert); the plugin wrapper itself
-is thin and verified on a device. `supabase/templates/` holds the auth
+`GotrueAsyncStorage` or the PKCE calls assert, and build each mocked
+`http.Response` with `request: request` or postgrest-dart's parser hits a
+null check); the plugin wrapper itself is thin and verified on a device.
+Data calls return `ForgeResult<T>` (`ForgeOk` / `ForgeFailed(ForgeDataError)`)
+and auth calls `ForgeAuthResult`; nothing public throws. `supabase/templates/` holds the auth
 mail templates apps paste into the dashboard; `bin/sync_supabase.dart`
 (FC-11) will copy them alongside the SQL and functions.
 
@@ -172,14 +175,30 @@ any request; deletes by `ForgeIdentity.identityId`, then re-reads the
 user), `setPassword()` = `updatePassword()`; `ForgeIdentity.identityId`
 added. Tim finished the Supabase setup (SMTP via Resend, email provider,
 Site URL, manual linking, pg_cron/pg_net/Vault, CLI at
-`~/.supabase/bin`, on PATH via `.bashrc`). The ticket map for v0.1.0 is
-FC-7..FC-12 (see CHEESE-57's 2026-10-18 comment for the order).
+`~/.supabase/bin`, on PATH via `.bashrc`; its token sits in the system
+keyring, so agent shells can run `supabase` commands but cannot read the
+token for the Management API). Shipped as `v0.1.0-rc.4`. FC-7: the
+`accounts` migration (`supabase/migrations/20261018120000_forge_accounts.sql`:
+table, trigger on `auth.users`, backfill, select-own-row policy,
+`forge_account_active()`, `set_username(text)`,
+`request_account_deletion()`, grants), `supabase/smoke/forge_accounts.sql`
+(a rollback-only exercise of all of it as a throwaway user), `ForgeResult`
+/ `ForgeDataError` for the data side, `ForgeAccount`, `ForgeAccounts`
+(`getAccount`, `watchAccount` re-reading on every auth change,
+`setUsername` via RPC then re-read), `FakeForgeAccounts`, `docs/data-model.md`.
+The SQL has not run against a database yet (no local Postgres; the
+project's DB password / a Management API token is Tim's): run the
+migration then the smoke file on the cheesy-scribe project before FC-9
+builds on it. The cheesy-scribe project ref is `pqcpiggcmuspmbdhwiij`
+(us-east-1). The ticket map for v0.1.0 is FC-8..FC-12 (see CHEESE-57's
+2026-10-18 comment for the order).
 
 ## Next actions
 
 1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
-   FC-5 (done) email/password, FC-6 (done) identity linking, FC-7
+   FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done,
+   SQL unverified against a database)
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,

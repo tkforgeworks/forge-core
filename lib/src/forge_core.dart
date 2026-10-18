@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import 'account/forge_accounts.dart';
 import 'auth/forge_auth.dart';
 import 'auth/google_id_token_source.dart';
 import 'config/forge_supabase_config.dart';
@@ -25,7 +26,9 @@ class ForgeCore {
         client.auth,
         google: google,
         emailRedirectUrl: config.authRedirectUrl,
-      );
+      ) {
+    accounts = SupabaseForgeAccounts(client, auth);
+  }
 
   /// Initialises Supabase for [config] (PKCE auth flow, session persisted on
   /// the device, deep links handled) and returns the handle. Google sign-in
@@ -55,8 +58,11 @@ class ForgeCore {
   /// Prefer the typed services; nothing in an app should need this long term.
   final sb.SupabaseClient client;
 
-  /// Session state and sign-out.
+  /// Session state, sign-in and sign-out.
   final ForgeAuth auth;
+
+  /// The signed-in user's account row (username, created date, deletion).
+  late final ForgeAccounts accounts;
 
   /// Releases the client's resources (tests; apps live as long as the
   /// process).
