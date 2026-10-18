@@ -28,8 +28,35 @@ Nothing is kept: no anonymised copy, no soft-delete beyond the flag that
 exists only until the purge runs. The privacy policy states the purge
 window (minutes under normal conditions; the retry covers outages).
 
-The web request path (a form on the website → request and confirm Edge
-Functions) is FC-10 and ends in the same `request_account_deletion()`.
+## The web path
+
+Google Play's deletion URL points at the app's page on the website
+(`/privacy/<app>/delete-account/`). Its form posts the address to a website
+Pages Function, which forwards `{email}` to the **forge-delete-request**
+Edge Function with a shared header secret (`FORGE_WEB_DELETE_SECRET`). That
+function asks the database for a token (`forge_create_deletion_token`:
+random, stored only as a SHA-256 hash in `forge_private.deletion_tokens`,
+24-hour expiry, one outstanding per account) and, if the address has an
+account, emails a confirmation link through Resend. The response is `200
+{ok:true}` whether or not the address exists, so the form cannot be used to
+discover accounts. The link opens **forge-delete-confirm**, which consumes
+the token (`forge_confirm_deletion`: valid, unexpired, unused) and sets
+`accounts.deletion_requested_at`, so the same purge runs; the visitor lands
+back on the website page with `?status=done` or `?status=invalid`. Consumed
+and stale tokens are pruned nightly (`forge-prune-deletion-tokens`).
+
+The website holds no Supabase key; only the shared header secret. The two
+database functions are callable by the project's secret key alone.
+
+Per-project secrets for the two functions: `FORGE_WEB_DELETE_SECRET` (same
+value on the website), `RESEND_API_KEY`, `FORGE_MAIL_FROM` (`"App
+<accounts@example.com>"`), `FORGE_APP_NAME`, `FORGE_SITE_URL` (the
+delete-account page). Deploy both with `--no-verify-jwt`.
+
+Verify: `supabase/smoke/web_deletion.sql` (rolls back) covers token issue,
+hash-only storage, bad / consumed / expired tokens, pruning and the grant;
+then post a real address to `forge-delete-request` with the header secret
+and follow the link in the mail.
 
 ## Deploying it to a project
 
