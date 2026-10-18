@@ -21,7 +21,11 @@ class ForgeCore {
   /// one is for tests and for apps that set Supabase up themselves. Pass
   /// [google] to offer Google sign-in (tests pass a fake source).
   ForgeCore.withClient(this.client, this.config, {GoogleIdTokenSource? google})
-    : auth = SupabaseForgeAuth(client.auth, google: google);
+    : auth = SupabaseForgeAuth(
+        client.auth,
+        google: google,
+        emailRedirectUrl: config.authRedirectUrl,
+      );
 
   /// Initialises Supabase for [config] (PKCE auth flow, session persisted on
   /// the device, deep links handled) and returns the handle. Google sign-in

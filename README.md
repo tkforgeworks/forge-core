@@ -69,6 +69,24 @@ Google Cloud and Supabase setup in
 only when `FORGE_GOOGLE_WEB_CLIENT_ID` is set; otherwise the call returns
 `ForgeAuthError.misconfigured` without showing any UI.
 
+Email and password go through the same result type, plus
+`ForgeAuthEmailSent` for the steps that wait on an inbox:
+
+```dart
+// Create an account; confirmation is required, so a mail goes out and the
+// session arrives through `changes` when the link is opened on this device.
+await core.auth.signUpWithEmail(email, password); // ForgeAuthEmailSent
+await core.auth.signInWithEmail(email, password); // ForgeAuthSuccess | Failure
+await core.auth.resendConfirmation(email);
+await core.auth.sendPasswordReset(email);         // opening the link → passwordRecovery
+await core.auth.updatePassword(newPassword);      // while signed in
+```
+
+Pass the app's custom scheme as `authRedirectUrl` so the links open the
+app; the Supabase side (Resend as SMTP, confirmation on, templates,
+redirect allow list) and the Android intent filter are in
+[`docs/email-setup.md`](docs/email-setup.md).
+
 The full design is in
 [`docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`](docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md).
 

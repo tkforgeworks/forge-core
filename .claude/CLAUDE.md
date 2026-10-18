@@ -129,8 +129,11 @@ under `test/`; `docs/` holds the setup guides. Public names are prefixed
 failure(`ForgeAuthError`)) are the plain types. Sign-in providers are
 abstracted behind sources (`GoogleIdTokenSource`) so the auth logic is unit
 tested with a scripted source and a `GoTrueClient` over `http`'s
-`MockClient` (no network, no platform plugin); the plugin wrapper itself is
-thin and verified on a device.
+`MockClient` (no network, no platform plugin; give it an in-memory
+`GotrueAsyncStorage` or the PKCE calls assert); the plugin wrapper itself
+is thin and verified on a device. `supabase/templates/` holds the auth
+mail templates apps paste into the dashboard; `bin/sync_supabase.dart`
+(FC-11) will copy them alongside the SQL and functions.
 
 ## Current status
 
@@ -152,16 +155,25 @@ Google and raw for Supabase, no access token so no second consent prompt),
 `ForgeAuthResult`/`ForgeAuthError`, `docs/google-cloud-setup.md`. Tim's GCP
 and Supabase setup is done (Web client + three Android clients, provider
 on, redirect allow list); the consent screen stays in Testing until the
-first tester RC. Real-device verification happens in cheesy-scribe
-CHEESE-61. The ticket map for v0.1.0 is FC-5..FC-12 (see CHEESE-57's
-2026-10-18 comment for the order).
+first tester RC. Shipped as `v0.1.0-rc.2`. FC-5: email/password
+(`signUpWithEmail` → `ForgeAuthEmailSent` under confirmation,
+`signInWithEmail`, `resendConfirmation`, `sendPasswordReset`,
+`updatePassword`), `ForgeAuthError` email cases mapped from GoTrue's error
+codes in `mapAuthException`, `ForgeSupabaseConfig.authRedirectUrl` (the
+app's custom scheme, sent as `redirect_to`), branded templates under
+`supabase/templates/`, `docs/email-setup.md` (SMTP via Resend, provider
+settings, Site URL, manifest intent filter). Tim's SMTP setup is pending
+(he wants Google verified first), so the real mail flow is first exercised
+in CHEESE-61. Real-device verification of both providers happens there.
+The ticket map for v0.1.0 is FC-6..FC-12 (see CHEESE-57's 2026-10-18
+comment for the order).
 
 ## Next actions
 
 1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
-   FC-5 email/password (extends `ForgeAuthError` with the email cases and
-   `mapAuthException`), FC-6 identity linking, FC-7
+   FC-5 (done) email/password, FC-6 identity linking (`linkGoogle` via
+   `linkIdentityWithIdToken`, `setPassword` is `updatePassword`), FC-7
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,

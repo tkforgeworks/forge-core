@@ -25,6 +25,22 @@ class FakeForgeAuth implements ForgeAuth {
   /// How many times [signInWithGoogle] was called.
   int googleSignIns = 0;
 
+  /// Scripted results for the email flows. Defaults: sign-up and resend
+  /// report a confirmation mail, reset reports a reset mail, sign-in and
+  /// password update sign [fakeSession] in.
+  ForgeAuthResult? signUpResult;
+  ForgeAuthResult signInResult = const ForgeAuthSuccess(fakeSession);
+  ForgeAuthResult? resendResult;
+  ForgeAuthResult? resetResult;
+  ForgeAuthResult updatePasswordResult = const ForgeAuthSuccess(fakeSession);
+
+  /// What the app asked for, in order.
+  final List<(String, String)> signUps = [];
+  final List<(String, String)> signIns = [];
+  final List<String> resends = [];
+  final List<String> resets = [];
+  final List<String> passwordUpdates = [];
+
   /// The account the fake signs in by default.
   static const fakeSession = ForgeSession(
     userId: 'fake-user',
@@ -67,6 +83,46 @@ class FakeForgeAuth implements ForgeAuth {
   Future<ForgeAuthResult> signInWithGoogle() async {
     googleSignIns++;
     final result = googleResult;
+    if (result is ForgeAuthSuccess) signIn(result.session);
+    return result;
+  }
+
+  @override
+  Future<ForgeAuthResult> signUpWithEmail(String email, String password) async {
+    signUps.add((email, password));
+    return _settle(
+      signUpResult ?? ForgeAuthEmailSent(email, ForgeMailPurpose.confirmation),
+    );
+  }
+
+  @override
+  Future<ForgeAuthResult> signInWithEmail(String email, String password) async {
+    signIns.add((email, password));
+    return _settle(signInResult);
+  }
+
+  @override
+  Future<ForgeAuthResult> resendConfirmation(String email) async {
+    resends.add(email);
+    return resendResult ??
+        ForgeAuthEmailSent(email, ForgeMailPurpose.confirmation);
+  }
+
+  @override
+  Future<ForgeAuthResult> sendPasswordReset(String email) async {
+    resets.add(email);
+    return resetResult ??
+        ForgeAuthEmailSent(email, ForgeMailPurpose.passwordReset);
+  }
+
+  @override
+  Future<ForgeAuthResult> updatePassword(String newPassword) async {
+    passwordUpdates.add(newPassword);
+    return _settle(updatePasswordResult);
+  }
+
+  /// A success also signs the fake in, as the real stream would.
+  ForgeAuthResult _settle(ForgeAuthResult result) {
     if (result is ForgeAuthSuccess) signIn(result.session);
     return result;
   }

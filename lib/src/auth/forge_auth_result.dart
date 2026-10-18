@@ -18,8 +18,41 @@ enum ForgeAuthError {
 
   /// Could not reach the backend.
   network,
+
+  // Email and password (FC-5).
+  /// Wrong email or password (Supabase does not say which).
+  invalidCredentials,
+
+  /// The account exists but its address was never confirmed.
+  emailNotConfirmed,
+
+  /// Sign-up with an address that already has an account.
+  emailTaken,
+
+  /// Too short, or on the leaked-password list; [ForgeAuthFailure.message]
+  /// carries the server's reasons.
+  weakPassword,
+
+  /// The address did not pass the server's validation.
+  invalidEmail,
+
+  /// Too many emails or requests for now.
+  rateLimited,
+
+  /// The confirmation or reset link is expired or was already used.
+  linkExpired,
+
+  /// The new password equals the old one.
+  samePassword,
+
+  /// A call that needs a signed-in user ran without one (for example
+  /// setting a password from a stale reset link).
+  sessionMissing,
   unknown,
 }
+
+/// Which mail [ForgeAuthEmailSent] refers to.
+enum ForgeMailPurpose { confirmation, passwordReset }
 
 /// The outcome of a sign-in attempt.
 @immutable
@@ -41,6 +74,26 @@ class ForgeAuthSuccess extends ForgeAuthResult {
 
   @override
   String toString() => 'ForgeAuthSuccess($session)';
+}
+
+/// Nothing more can happen until the user opens an email: a sign-up that
+/// needs confirmation, a resent confirmation, or a password-reset link.
+class ForgeAuthEmailSent extends ForgeAuthResult {
+  const ForgeAuthEmailSent(this.email, this.purpose);
+  final String email;
+  final ForgeMailPurpose purpose;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ForgeAuthEmailSent &&
+      other.email == email &&
+      other.purpose == purpose;
+
+  @override
+  int get hashCode => Object.hash(email, purpose);
+
+  @override
+  String toString() => 'ForgeAuthEmailSent($email, ${purpose.name})';
 }
 
 /// The user backed out; nothing to show.
