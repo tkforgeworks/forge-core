@@ -1,0 +1,36 @@
+# Consumes the org standard tagless Flutter release pipeline
+# (tkforgeworks/.github release-flutter.yml). forge_core is a package, so both
+# platform builds are off: a release is a tag and a GitHub release with notes,
+# and no attached files. Apps pin the tag as a git dependency.
+#
+# How a release happens (docs/branching-and-release.md in the org repo):
+#   scripts/release/bump-version.sh rc     on vX.Y.Z/main → prerelease vX.Y.Z-rc.N
+#   scripts/release/bump-version.sh final  on vX.Y.Z/main → release PR; merging
+#                                          into main cuts the stable vX.Y.Z
+# The bump is an ordinary commit; this workflow self-gates on whether the
+# version's tag exists and creates the tag when it publishes the GitHub
+# release. Never hand-edit the version or push tags.
+#
+# ticket-prefix FC: release notes link each `FC-N:` subject to Jira through
+# the repository variable JIRA_BASE_URL.
+name: Release
+
+on:
+  push:
+    branches: [main, 'v*/main']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: tkforgeworks/.github/.github/workflows/release-flutter.yml@main
+    with:
+      flutter-version: '3.47.5'
+      build-windows: false
+      build-android: false
+      ticket-prefix: FC

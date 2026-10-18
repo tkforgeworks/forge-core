@@ -13,14 +13,3 @@ deviations:
       The SDK pin is left to the repo. 3.47.5 was the current stable when the
       repo was set up.
     since: 2026-10-10
-
-  - standard: release-flutter
-    item: release pipeline not adopted yet
-    kind: opt-out
-    reason: >
-      v0.0.1 is a setup-only batch that ships no tag, which
-      branching-and-release.md allows for repos without a release pipeline.
-      Adopt release-flutter.yml (both platform builds off) and the vendored
-      bump-version scripts when v0.1.0/main is cut, since release tags are how
-      apps consume this package.
-    since: 2026-10-10
