@@ -18,5 +18,7 @@ export 'src/auth/google_id_token_source.dart'
         GoogleIdTokenFailure,
         GoogleIdTokenSource;
 export 'src/config/forge_supabase_config.dart';
+export 'src/data/forge_entries_repository.dart' show ForgeEntriesRepository;
+export 'src/data/forge_entry.dart';
 export 'src/forge_core.dart';
 export 'src/forge_result.dart';

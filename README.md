@@ -87,6 +87,29 @@ app; the Supabase side (Resend as SMTP, confirmation on, templates,
 redirect allow list) and the Android intent filter are in
 [`docs/email-setup.md`](docs/email-setup.md).
 
+## Account and data
+
+```dart
+final account = await core.accounts.getAccount();   // ForgeResult<ForgeAccount?>
+await core.accounts.setUsername('Tim');
+
+final notes = core.entries<TastingNote>(
+  kind: 'tasting_note',
+  fromJson: TastingNote.fromJson,
+  toJson: (n) => n.toJson(),
+);
+await notes.upsertAll(dirty);                      // push local edits
+final keys = await notes.listKeys(since: lastSync); // what changed remotely
+final newer = await notes.fetchByIds(ids);          // pull those rows
+await notes.markDeleted(deletedIds, now);           // push deletions
+```
+
+Data calls return `ForgeResult<T>`: `ForgeOk(value)` or
+`ForgeFailed(ForgeDataError, message)`. The SQL behind them (the `accounts`
+migration and the `entries` template an app copies into its own
+migrations) is under `supabase/`, with the rules every app table follows in
+[`docs/data-model.md`](docs/data-model.md).
+
 The full design is in
 [`docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`](docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md).
 

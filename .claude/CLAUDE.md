@@ -186,19 +186,33 @@ table, trigger on `auth.users`, backfill, select-own-row policy,
 / `ForgeDataError` for the data side, `ForgeAccount`, `ForgeAccounts`
 (`getAccount`, `watchAccount` re-reading on every auth change,
 `setUsername` via RPC then re-read), `FakeForgeAccounts`, `docs/data-model.md`.
-The SQL has not run against a database yet (no local Postgres; the
-project's DB password / a Management API token is Tim's): run the
-migration then the smoke file on the cheesy-scribe project before FC-9
-builds on it. The cheesy-scribe project ref is `pqcpiggcmuspmbdhwiij`
-(us-east-1). The ticket map for v0.1.0 is FC-8..FC-12 (see CHEESE-57's
-2026-10-18 comment for the order).
+Shipped as `v0.1.0-rc.5`. **SQL verification path:** no local Postgres, so
+SQL runs against the cheesy-scribe project (ref `pqcpiggcmuspmbdhwiij`,
+us-east-1) through the Management API query endpoint
+(`POST /v1/projects/<ref>/database/query`, body `{query, read_only}`) with
+Tim's project-scoped access token in `~/.supabase/access-token` (Database
++ Migrations + Edge Functions + Edge Function Secrets read-write, Project
+Settings read; 7-day expiry, Tim regenerates). The accounts migration was
+applied that way on 2026-10-18 and recorded in
+`supabase_migrations.schema_migrations` (version `20261018120000`, name
+`forge_accounts`) so an app's later `supabase db push` treats it as
+applied; `smoke/forge_accounts.sql` passed. FC-8: `supabase/templates/
+entries.sql` (client-supplied `id`/`updated_at`, `kind`, `data`,
+`deleted_at` tombstone with an empty-data check, `(user_id, updated_at,
+id)` index, own-rows + active policy; verified with `smoke/entries.sql`
+inside a rolled-back transaction), `ForgeEntry`/`ForgeEntryKey`,
+`ForgeEntriesRepository` (`upsertAll`, paged `listKeys`, `fetchByIds`,
+`markDeleted`) via `core.entries<T>()`, `FakeForgeEntriesRepository`,
+shared `forgeGuard`/`forgeDataErrorOf` in `supabase_errors.dart`. The
+ticket map for v0.1.0 is FC-9..FC-12 (see CHEESE-57's 2026-10-18 comment
+for the order).
 
 ## Next actions
 
 1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
-   FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done,
-   SQL unverified against a database)
+   FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done),
+   FC-8 (done)
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,
@@ -219,5 +233,5 @@ builds on it. The cheesy-scribe project ref is `pqcpiggcmuspmbdhwiij`
 - **Dependabot targets `main`**, which bypasses the release-branch flow. The
   org pattern (cheesy-scribe CHEESE-53): leave its PRs open against `main`
   and bundle the updates on the release branch before the final bump.
-- **Supabase extensions.** Confirm `pg_cron`, `pg_net` and Vault are
-  available on the real project before the purge migration lands.
+- **Supabase extensions.** Confirmed on the cheesy-scribe project on
+  2026-10-18: `pg_cron` 1.6.4, `pg_net` 0.20.4, `supabase_vault` 0.3.1.
