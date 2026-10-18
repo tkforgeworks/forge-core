@@ -7,6 +7,13 @@
 library;
 
 export 'src/auth/forge_auth.dart' show ForgeAuth;
+export 'src/auth/forge_auth_result.dart';
 export 'src/auth/forge_session.dart';
+export 'src/auth/google_id_token_source.dart'
+    show
+        GoogleIdToken,
+        GoogleIdTokenException,
+        GoogleIdTokenFailure,
+        GoogleIdTokenSource;
 export 'src/config/forge_supabase_config.dart';
 export 'src/forge_core.dart';

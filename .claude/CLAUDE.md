@@ -121,8 +121,16 @@ come from cheesy-scribe's planning ticket CHEESE-57.
   built in forge-ui first (that is forge-ui's rule, recorded in the spec).
 
 Layout: `lib/forge_core.dart` is the only public library and exports
-everything under `lib/src/` (`config/` so far). Tests mirror it under
-`test/`. Public names are prefixed `Forge`.
+everything under `lib/src/` (`config/`, `auth/`, `forge_core.dart`);
+`lib/testing.dart` holds the fakes apps import in tests. Tests mirror it
+under `test/`; `docs/` holds the setup guides. Public names are prefixed
+`Forge`. Supabase types never appear in the public API: `ForgeSession`,
+`ForgeAuthState`, `ForgeAuthResult` (sealed: success / cancelled /
+failure(`ForgeAuthError`)) are the plain types. Sign-in providers are
+abstracted behind sources (`GoogleIdTokenSource`) so the auth logic is unit
+tested with a scripted source and a `GoTrueClient` over `http`'s
+`MockClient` (no network, no platform plugin); the plugin wrapper itself is
+thin and verified on a device.
 
 ## Current status
 
@@ -136,15 +144,24 @@ at `0.1.0+1` with the lower SDK floor, Dependabot `pub-minor-patch` group,
 the three merged `v0.1.0/*` topic branches deleted, and the placeholder
 test replaced by `ForgeSupabaseConfig` (`lib/src/config/`: the three
 `--dart-define` names, `isConfigured`, `hasGoogle`, key-free `toString`)
-with its tests. No RC cut yet: the first one proves the pipeline when FC-3
-lands. The ticket map for v0.1.0 is FC-3..FC-12 (see CHEESE-57's 2026-10-18
-comment for the order).
+with its tests. FC-3: `ForgeCore`, `ForgeAuth` session stream,
+`FakeForgeAuth`; shipped as `v0.1.0-rc.1` (pipeline proven, notes link FC
+tickets). FC-4: `signInWithGoogle()` via `PluginGoogleIdTokenSource`
+(google_sign_in 7, Credential Manager, one nonce per process hashed for
+Google and raw for Supabase, no access token so no second consent prompt),
+`ForgeAuthResult`/`ForgeAuthError`, `docs/google-cloud-setup.md`. Tim's GCP
+and Supabase setup is done (Web client + three Android clients, provider
+on, redirect allow list); the consent screen stays in Testing until the
+first tester RC. Real-device verification happens in cheesy-scribe
+CHEESE-61. The ticket map for v0.1.0 is FC-5..FC-12 (see CHEESE-57's
+2026-10-18 comment for the order).
 
 ## Next actions
 
 1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
-   client wrapper + session stream (extends `ForgeSupabaseConfig`), FC-4
-   Google sign-in, FC-5 email/password, FC-6 identity linking, FC-7
+   (done) client wrapper + session stream, FC-4 (done) Google sign-in,
+   FC-5 email/password (extends `ForgeAuthError` with the email cases and
+   `mapAuthException`), FC-6 identity linking, FC-7
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,

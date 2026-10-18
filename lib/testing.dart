@@ -17,6 +17,28 @@ class FakeForgeAuth implements ForgeAuth {
   /// Every [signOut] call's `everywhere` argument, in order.
   final List<bool> signOutCalls = [];
 
+  /// What [signInWithGoogle] returns next. Defaults to signing in
+  /// [fakeSession]; set a [ForgeAuthCancelled] or [ForgeAuthFailure] to
+  /// exercise the other branches.
+  ForgeAuthResult googleResult = const ForgeAuthSuccess(fakeSession);
+
+  /// How many times [signInWithGoogle] was called.
+  int googleSignIns = 0;
+
+  /// The account the fake signs in by default.
+  static const fakeSession = ForgeSession(
+    userId: 'fake-user',
+    email: 'fake@example.com',
+    emailConfirmed: true,
+    identities: [
+      ForgeIdentity(
+        id: 'fake-google',
+        provider: ForgeIdentityProvider.google,
+        email: 'fake@example.com',
+      ),
+    ],
+  );
+
   @override
   ForgeAuthState get current => _current;
 
@@ -40,6 +62,14 @@ class FakeForgeAuth implements ForgeAuth {
   void startPasswordRecovery(ForgeSession session) => emit(
     ForgeAuthState(event: ForgeAuthEvent.passwordRecovery, session: session),
   );
+
+  @override
+  Future<ForgeAuthResult> signInWithGoogle() async {
+    googleSignIns++;
+    final result = googleResult;
+    if (result is ForgeAuthSuccess) signIn(result.session);
+    return result;
+  }
 
   @override
   Future<void> signOut({bool everywhere = false}) async {

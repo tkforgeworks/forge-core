@@ -53,6 +53,22 @@ core?.auth.changes.listen((state) => /* signed in? */ state.isSignedIn);
 Widget tests use `FakeForgeAuth` from `package:forge_core/testing.dart`
 instead of a client, so nothing touches the network.
 
+## Signing in
+
+```dart
+switch (await core.auth.signInWithGoogle()) {
+  case ForgeAuthSuccess(:final session): // signed in; `changes` emits too
+  case ForgeAuthCancelled(): // the user backed out; say nothing
+  case ForgeAuthFailure(:final error, :final message): // show copy for `error`
+}
+```
+
+Google sign-in is native (Credential Manager on Android) and needs the
+Google Cloud and Supabase setup in
+[`docs/google-cloud-setup.md`](docs/google-cloud-setup.md). It is offered
+only when `FORGE_GOOGLE_WEB_CLIENT_ID` is set; otherwise the call returns
+`ForgeAuthError.misconfigured` without showing any UI.
+
 The full design is in
 [`docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`](docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md).
 

@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import 'auth/forge_auth.dart';
+import 'auth/google_id_token_source.dart';
 import 'config/forge_supabase_config.dart';
 
 /// The app's handle on its Supabase project: one initialised client and the
@@ -17,12 +18,14 @@ import 'config/forge_supabase_config.dart';
 /// user backup isn't available in this build.
 class ForgeCore {
   /// Wraps an already-created client. [initialize] is the usual path; this
-  /// one is for tests and for apps that set Supabase up themselves.
-  ForgeCore.withClient(this.client, this.config)
-    : auth = SupabaseForgeAuth(client.auth);
+  /// one is for tests and for apps that set Supabase up themselves. Pass
+  /// [google] to offer Google sign-in (tests pass a fake source).
+  ForgeCore.withClient(this.client, this.config, {GoogleIdTokenSource? google})
+    : auth = SupabaseForgeAuth(client.auth, google: google);
 
   /// Initialises Supabase for [config] (PKCE auth flow, session persisted on
-  /// the device, deep links handled) and returns the handle.
+  /// the device, deep links handled) and returns the handle. Google sign-in
+  /// is offered when the config has a web client ID.
   static Future<ForgeCore> initialize(
     ForgeSupabaseConfig config, {
     bool debug = false,
@@ -33,7 +36,13 @@ class ForgeCore {
       publishableKey: config.publishableKey,
       debug: debug,
     );
-    return ForgeCore.withClient(supabase.client, config);
+    return ForgeCore.withClient(
+      supabase.client,
+      config,
+      google: config.hasGoogle
+          ? PluginGoogleIdTokenSource(serverClientId: config.googleWebClientId)
+          : null,
+    );
   }
 
   final ForgeSupabaseConfig config;

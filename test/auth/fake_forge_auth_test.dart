@@ -29,6 +29,18 @@ void main() {
     expect(auth.signOutCalls, [true]);
   });
 
+  test('signInWithGoogle follows the scripted result', () async {
+    final auth = FakeForgeAuth();
+    addTearDown(auth.dispose);
+    expect(await auth.signInWithGoogle(), isA<ForgeAuthSuccess>());
+    expect(auth.current.session, FakeForgeAuth.fakeSession);
+    expect(auth.googleSignIns, 1);
+    auth.googleResult = const ForgeAuthCancelled();
+    expect(await auth.signInWithGoogle(), const ForgeAuthCancelled());
+    expect(auth.googleSignIns, 2);
+    expect(auth.current.session, FakeForgeAuth.fakeSession); // unchanged
+  });
+
   test('a late listener gets the signed-in state first', () async {
     final auth = FakeForgeAuth(
       initial: const ForgeAuthState(
