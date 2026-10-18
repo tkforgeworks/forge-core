@@ -128,6 +128,10 @@ class FakeForgeAccounts implements ForgeAccounts {
   /// Every value [setUsername] received, in order.
   final List<String?> usernameWrites = [];
 
+  /// How many times [deleteAccount] ran, and when the fake row was flagged.
+  int deleteCalls = 0;
+  DateTime? deletionRequestedAt;
+
   ForgeAccount? get _row {
     final session = auth.current.session;
     return session == null
@@ -136,7 +140,21 @@ class FakeForgeAccounts implements ForgeAccounts {
             userId: session.userId,
             username: username,
             createdAt: createdAt,
+            deletionRequestedAt: deletionRequestedAt,
           );
+  }
+
+  @override
+  Future<ForgeResult<void>> deleteAccount() async {
+    deleteCalls++;
+    final failed = _failure<void>();
+    if (failed != null) return failed;
+    if (auth.current.session == null) {
+      return const ForgeFailed(ForgeDataError.sessionMissing, 'Not signed in');
+    }
+    deletionRequestedAt = DateTime.now().toUtc();
+    await auth.signOut(everywhere: true);
+    return const ForgeOk(null);
   }
 
   ForgeResult<T>? _failure<T>() {

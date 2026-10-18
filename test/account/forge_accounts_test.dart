@@ -66,6 +66,10 @@ void main() {
                         as String?;
                 return (204, '');
               }();
+        } else if (path.endsWith('/rest/v1/rpc/request_account_deletion')) {
+          reply = (204, '');
+        } else if (path.endsWith('/auth/v1/logout')) {
+          reply = (204, '');
         } else if (path.endsWith('/rest/v1/accounts')) {
           reply = (200, _row(username: storedUsername));
         } else {
@@ -229,6 +233,35 @@ void main() {
       ); // one-shot
     },
   );
+
+  test('deleteAccount flags the account, then signs out everywhere', () async {
+    final c = core();
+    expect(
+      ((await c.accounts.deleteAccount()) as ForgeFailed).error,
+      ForgeDataError.sessionMissing,
+    );
+    expect(requests, isEmpty);
+    await c.auth.signInWithEmail('tim@example.com', 'hunter22');
+    requests.clear();
+    expect(await c.accounts.deleteAccount(), const ForgeOk<void>(null));
+    expect(requests.map((r) => r.url.path), [
+      endsWith('/rest/v1/rpc/request_account_deletion'),
+      endsWith('/auth/v1/logout'),
+    ]);
+    expect(requests.first.headers['Authorization'], 'Bearer access');
+    expect(requests.last.url.queryParameters['scope'], 'global');
+    expect(c.auth.current.isSignedIn, isFalse);
+
+    final auth = FakeForgeAuth();
+    addTearDown(auth.dispose);
+    final fake = FakeForgeAccounts(auth);
+    auth.signIn(FakeForgeAuth.fakeSession);
+    expect(await fake.deleteAccount(), const ForgeOk<void>(null));
+    expect(fake.deleteCalls, 1);
+    expect(fake.deletionRequestedAt, isNotNull);
+    expect(auth.current.isSignedIn, isFalse);
+    expect(auth.signOutCalls, [true]);
+  });
 
   test('mapPostgrestException', () {
     ForgeDataError map(String code) =>

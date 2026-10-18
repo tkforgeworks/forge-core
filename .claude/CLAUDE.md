@@ -203,16 +203,33 @@ id)` index, own-rows + active policy; verified with `smoke/entries.sql`
 inside a rolled-back transaction), `ForgeEntry`/`ForgeEntryKey`,
 `ForgeEntriesRepository` (`upsertAll`, paged `listKeys`, `fetchByIds`,
 `markDeleted`) via `core.entries<T>()`, `FakeForgeEntriesRepository`,
-shared `forgeGuard`/`forgeDataErrorOf` in `supabase_errors.dart`. The
-ticket map for v0.1.0 is FC-9..FC-12 (see CHEESE-57's 2026-10-18 comment
-for the order).
+shared `forgeGuard`/`forgeDataErrorOf` in `supabase_errors.dart`. Shipped
+as `v0.1.0-rc.6`. FC-9: `deleteAccount()` (RPC `request_account_deletion`
+then global sign-out), `supabase/migrations/20261018130000_forge_purge.sql`
+(`forge_request_purge()` reads `forge_project_url` + `forge_purge_token`
+from Vault and `net.http_post`s the function; `forge_on_deletion_requested`
+trigger fires it on the flag; `pg_cron` job `forge-purge` every 15 min),
+`supabase/functions/forge-purge/index.ts` (shared-token auth, admin client
+from `SUPABASE_SECRET_KEYS`, Storage prefix walk, optional per-user Vault
+secrets via `forge_delete_user_secrets` RPC if an app defines it,
+`auth.admin.deleteUser`; 200 or 207 with per-account failures),
+`docs/deletion.md` runbook. **Deployed to the cheesy-scribe project on
+2026-10-18**: secret `FORGE_PURGE_TOKEN` set via `supabase secrets set
+--project-ref`, Vault entries created, function deployed with
+`supabase functions deploy forge-purge --project-ref … --use-api
+--no-verify-jwt` (no `supabase link` needed; the CLI's keyring token works
+for these), migration applied and recorded; a throwaway user was purged end
+to end. Gotcha: a raw `insert into auth.users` must set the token columns
+to `''` and metadata to `'{}'` or GoTrue's admin API fails with "Database
+error loading user". The ticket map for v0.1.0 is FC-10..FC-12 (see
+CHEESE-57's 2026-10-18 comment for the order).
 
 ## Next actions
 
 1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
    FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done),
-   FC-8 (done)
+   FC-8 (done), FC-9 (done, deployed)
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,
