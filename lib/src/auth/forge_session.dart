@@ -23,10 +23,18 @@ enum ForgeIdentityProvider {
 /// One linked sign-in method of an account.
 @immutable
 class ForgeIdentity {
-  const ForgeIdentity({required this.id, required this.provider, this.email});
+  const ForgeIdentity({
+    required this.id,
+    required this.identityId,
+    required this.provider,
+    this.email,
+  });
 
-  /// Supabase's identity id (stable per provider account).
+  /// The provider's id for the user (Google's `sub`, the email address…).
   final String id;
+
+  /// Supabase's own id for this link; what unlinking refers to.
+  final String identityId;
   final ForgeIdentityProvider provider;
 
   /// The email that provider knows the user by, when it reports one.
@@ -37,11 +45,12 @@ class ForgeIdentity {
       identical(this, other) ||
       other is ForgeIdentity &&
           other.id == id &&
+          other.identityId == identityId &&
           other.provider == provider &&
           other.email == email;
 
   @override
-  int get hashCode => Object.hash(id, provider, email);
+  int get hashCode => Object.hash(id, identityId, provider, email);
 
   @override
   String toString() => 'ForgeIdentity(${provider.name}, $email)';
@@ -67,6 +76,7 @@ class ForgeSession {
       for (final i in user.identities ?? const <sb.UserIdentity>[])
         ForgeIdentity(
           id: i.id,
+          identityId: i.identityId,
           provider: ForgeIdentityProvider.fromName(i.provider),
           email: i.identityData?['email'] as String?,
         ),

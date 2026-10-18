@@ -4,13 +4,13 @@ import 'forge_auth_result.dart';
 import 'forge_session.dart';
 import 'google_id_token_source.dart';
 
-/// Session state, sign-in and sign-out, in plain types. Apps wrap [changes]
-/// in their state layer (a Riverpod `StreamProvider`, say) and never touch
-/// Supabase.
+/// Session state, sign-in, linking and sign-out, in plain types. Apps wrap
+/// [changes] in their state layer (a Riverpod `StreamProvider`, say) and
+/// never touch Supabase.
 ///
-/// Every sign-in call returns a [ForgeAuthResult] and never throws. The
-/// production implementation is [SupabaseForgeAuth];
-/// `package:forge_core/testing.dart` has a fake for app tests.
+/// Every call returns a [ForgeAuthResult] and never throws. The production
+/// implementation is [SupabaseForgeAuth]; `package:forge_core/testing.dart`
+/// has a fake for app tests.
 abstract class ForgeAuth {
   /// The state right now.
   ForgeAuthState get current;
@@ -42,8 +42,24 @@ abstract class ForgeAuth {
   Future<ForgeAuthResult> sendPasswordReset(String email);
 
   /// Sets a new password for the signed-in user (after a reset link, or to
-  /// add a password to a Google-only account).
+  /// add a password to a Google-only account; [setPassword] is the same
+  /// call under the name the account page uses).
   Future<ForgeAuthResult> updatePassword(String newPassword);
+
+  /// Adds email/password sign-in to a Google-only account. The account's
+  /// email is already known, so this is [updatePassword].
+  Future<ForgeAuthResult> setPassword(String password);
+
+  /// Attaches the Google account the user picks to the signed-in account,
+  /// natively. [ForgeAuthError.identityAlreadyLinked] when that Google
+  /// account belongs to someone else; needs "Allow manual linking" on the
+  /// Supabase project. On success [changes] emits `userUpdated` with the
+  /// new identity list.
+  Future<ForgeAuthResult> linkGoogle();
+
+  /// Removes one sign-in method. Refused as [ForgeAuthError.lastSignInMethod]
+  /// when it is the only one, before any request.
+  Future<ForgeAuthResult> unlinkIdentity(ForgeIdentity identity);
 
   /// Ends the session on this device, or on every device with [everywhere]
   /// (account deletion uses that). Never touches the app's own storage.
@@ -51,9 +67,10 @@ abstract class ForgeAuth {
 }
 
 /// [ForgeAuth] over a Supabase client. [google] is null when the build has
-/// no web client ID, in which case [signInWithGoogle] reports
-/// [ForgeAuthError.misconfigured]. [emailRedirectUrl] is where confirmation
-/// and reset mails send the user back to (the app's custom scheme).
+/// no web client ID, in which case [signInWithGoogle] and [linkGoogle]
+/// report [ForgeAuthError.misconfigured]. [emailRedirectUrl] is where
+/// confirmation and reset mails send the user back to (the app's custom
+/// scheme).
 class SupabaseForgeAuth implements ForgeAuth {
   SupabaseForgeAuth(this._auth, {this._google, String emailRedirectUrl = ''})
     : _redirect = emailRedirectUrl.isEmpty ? null : emailRedirectUrl;
@@ -76,6 +93,73 @@ class SupabaseForgeAuth implements ForgeAuth {
 
   @override
   Future<ForgeAuthResult> signInWithGoogle() async {
+    final token = await _googleToken();
+    if (token is ForgeAuthResult) return token;
+    token as GoogleIdToken;
+    return _guard(() async {
+      final response = await _auth.signInWithIdToken(
+        provider: sb.OAuthProvider.google,
+        idToken: token.idToken,
+        nonce: token.rawNonce,
+      );
+      return _success(response.user);
+    });
+  }
+
+  @override
+  Future<ForgeAuthResult> linkGoogle() async {
+    if (_auth.currentSession == null) {
+      return const ForgeAuthFailure(
+        ForgeAuthError.sessionMissing,
+        'Sign in before linking another method',
+      );
+    }
+    final token = await _googleToken();
+    if (token is ForgeAuthResult) return token;
+    token as GoogleIdToken;
+    return _guard(() async {
+      final response = await _auth.linkIdentityWithIdToken(
+        provider: sb.OAuthProvider.google,
+        idToken: token.idToken,
+        nonce: token.rawNonce,
+      );
+      return _success(response.user);
+    });
+  }
+
+  @override
+  Future<ForgeAuthResult> unlinkIdentity(ForgeIdentity identity) =>
+      _guard(() async {
+        if (_auth.currentSession == null) {
+          return const ForgeAuthFailure(
+            ForgeAuthError.sessionMissing,
+            'Sign in before unlinking a method',
+          );
+        }
+        final identities =
+            _auth.currentUser?.identities ?? await _auth.getUserIdentities();
+        if (identities.length <= 1) {
+          return const ForgeAuthFailure(
+            ForgeAuthError.lastSignInMethod,
+            'That is the only way to sign in to this account',
+          );
+        }
+        final target = identities.where(
+          (i) => i.identityId == identity.identityId,
+        );
+        if (target.isEmpty) {
+          return const ForgeAuthFailure(
+            ForgeAuthError.unknown,
+            'That sign-in method is not on this account',
+          );
+        }
+        await _auth.unlinkIdentity(target.first);
+        final refreshed = await _auth.getUser();
+        return _success(refreshed.user);
+      });
+
+  /// The Google ID token, or the [ForgeAuthResult] to return instead.
+  Future<Object> _googleToken() async {
     final google = _google;
     if (google == null) {
       return const ForgeAuthFailure(
@@ -83,9 +167,8 @@ class SupabaseForgeAuth implements ForgeAuth {
         'Google sign-in is not configured for this build',
       );
     }
-    final GoogleIdToken token;
     try {
-      token = await google.idToken();
+      return await google.idToken();
     } on GoogleIdTokenException catch (e) {
       return switch (e.code) {
         GoogleIdTokenFailure.cancelled => const ForgeAuthCancelled(),
@@ -106,23 +189,6 @@ class SupabaseForgeAuth implements ForgeAuth {
           e.message,
         ),
       };
-    }
-    try {
-      final response = await _auth.signInWithIdToken(
-        provider: sb.OAuthProvider.google,
-        idToken: token.idToken,
-        nonce: token.rawNonce,
-      );
-      final user = response.user;
-      if (user == null) {
-        return const ForgeAuthFailure(
-          ForgeAuthError.unknown,
-          'Supabase returned no user',
-        );
-      }
-      return ForgeAuthSuccess(ForgeSession.fromSupabase(user));
-    } on sb.AuthException catch (e) {
-      return ForgeAuthFailure(mapAuthException(e), e.message);
     }
   }
 
@@ -177,6 +243,10 @@ class SupabaseForgeAuth implements ForgeAuth {
         );
         return _success(response.user);
       });
+
+  @override
+  Future<ForgeAuthResult> setPassword(String password) =>
+      updatePassword(password);
 
   /// Runs a Supabase call and turns its exceptions into results.
   Future<ForgeAuthResult> _guard(
@@ -253,9 +323,14 @@ class SupabaseForgeAuth implements ForgeAuth {
       'session_missing' ||
       'session_not_found' ||
       'session_expired' => ForgeAuthError.sessionMissing,
+      'identity_already_exists' => ForgeAuthError.identityAlreadyLinked,
+      'single_identity_not_deletable' ||
+      'email_conflict_identity_not_deletable' =>
+        ForgeAuthError.lastSignInMethod,
       'signup_disabled' ||
       'email_provider_disabled' ||
-      'provider_disabled' => ForgeAuthError.misconfigured,
+      'provider_disabled' ||
+      'manual_linking_disabled' => ForgeAuthError.misconfigured,
       _ => ForgeAuthError.unknown,
     };
   }

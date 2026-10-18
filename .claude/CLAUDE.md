@@ -165,15 +165,21 @@ app's custom scheme, sent as `redirect_to`), branded templates under
 settings, Site URL, manifest intent filter). Tim's SMTP setup is pending
 (he wants Google verified first), so the real mail flow is first exercised
 in CHEESE-61. Real-device verification of both providers happens there.
-The ticket map for v0.1.0 is FC-6..FC-12 (see CHEESE-57's 2026-10-18
-comment for the order).
+Shipped as `v0.1.0-rc.3`. FC-6: `linkGoogle()` (`linkIdentityWithIdToken`
+on the current session; `identityAlreadyLinked`, `misconfigured` when
+manual linking is off), `unlinkIdentity()` (refuses the last method before
+any request; deletes by `ForgeIdentity.identityId`, then re-reads the
+user), `setPassword()` = `updatePassword()`; `ForgeIdentity.identityId`
+added. Tim finished the Supabase setup (SMTP via Resend, email provider,
+Site URL, manual linking, pg_cron/pg_net/Vault, CLI at
+`~/.supabase/bin`, on PATH via `.bashrc`). The ticket map for v0.1.0 is
+FC-7..FC-12 (see CHEESE-57's 2026-10-18 comment for the order).
 
 ## Next actions
 
 1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
-   FC-5 (done) email/password, FC-6 identity linking (`linkGoogle` via
-   `linkIdentityWithIdToken`, `setPassword` is `updatePassword`), FC-7
+   FC-5 (done) email/password, FC-6 (done) identity linking, FC-7
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,

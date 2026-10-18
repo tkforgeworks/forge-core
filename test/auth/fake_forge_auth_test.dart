@@ -76,6 +76,50 @@ void main() {
     expect(auth.passwordUpdates, ['newpassword1']);
   });
 
+  test(
+    'linking adds a Google identity; unlinking the last one is refused',
+    () async {
+      final auth = FakeForgeAuth();
+      addTearDown(auth.dispose);
+      expect(
+        ((await auth.linkGoogle()) as ForgeAuthFailure).error,
+        ForgeAuthError.sessionMissing,
+      );
+      auth.signIn(
+        const ForgeSession(
+          userId: 'u1',
+          email: 'tim@example.com',
+          identities: [
+            ForgeIdentity(
+              id: 'tim@example.com',
+              identityId: 'link-email',
+              provider: ForgeIdentityProvider.email,
+            ),
+          ],
+        ),
+      );
+      final linked = await auth.linkGoogle();
+      expect(
+        (linked as ForgeAuthSuccess).session.has(ForgeIdentityProvider.google),
+        isTrue,
+      );
+      expect(auth.current.event, ForgeAuthEvent.userUpdated);
+      expect(auth.linkGoogleCalls, 2); // the refused call counts too
+      final google = auth.current.session!.identities.last;
+      final unlinked = await auth.unlinkIdentity(google);
+      expect((unlinked as ForgeAuthSuccess).session.identities, hasLength(1));
+      final refused = await auth.unlinkIdentity(
+        auth.current.session!.identities.single,
+      );
+      expect(
+        (refused as ForgeAuthFailure).error,
+        ForgeAuthError.lastSignInMethod,
+      );
+      expect(auth.unlinks, hasLength(2));
+      expect(await auth.setPassword('newpassword1'), isA<ForgeAuthSuccess>());
+    },
+  );
+
   test('a late listener gets the signed-in state first', () async {
     final auth = FakeForgeAuth(
       initial: const ForgeAuthState(
