@@ -5,17 +5,53 @@ built on Supabase. The Dart package is `forge_core`; its sibling
 [`forge-ui`](https://github.com/tkforgeworks/forge-ui) carries the brand look.
 Apps depend on both, and the two packages never depend on each other.
 
-**Status: pre-release.** The repo holds the spec and an empty package
-skeleton. Nothing is usable yet.
+**Status: pre-release, v0.1.0 in progress.** Configuration, client
+initialisation and session state exist; sign-in, accounts, deletion and the
+data helper arrive ticket by ticket (Jira project `FC`).
 
-## What it will own
+## What it owns
 
-- Google and Apple sign-in, session state and identity linking
+- Google and email/password sign-in, session state and identity linking
+  (Apple when an iOS app exists)
 - In-app account deletion, including the server-side purge
 - A typed repository helper over a generic jsonb `entries` table
 
 It never contains Supabase URLs or keys, app schemas, or UI styling: each app
-passes in its own Supabase client.
+passes in its own configuration.
+
+## Configuration
+
+An app's Supabase URL, publishable key and Google web client ID are public
+by design but never committed. They reach the app as `--dart-define`s:
+
+| Define | Value |
+| --- | --- |
+| `FORGE_SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `FORGE_SUPABASE_PUBLISHABLE_KEY` | the project's `sb_publishable_…` key |
+| `FORGE_GOOGLE_WEB_CLIENT_ID` | the Google Cloud **Web** OAuth client ID (empty if no Google sign-in) |
+
+Locally, keep them in a gitignored JSON file and build with
+`flutter run --dart-define-from-file=config/dev.json`:
+
+```json
+{
+  "FORGE_SUPABASE_URL": "https://abc.supabase.co",
+  "FORGE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_…",
+  "FORGE_GOOGLE_WEB_CLIENT_ID": "123.apps.googleusercontent.com"
+}
+```
+
+Release builds get them from the org release pipeline. In code:
+
+```dart
+const config = ForgeSupabaseConfig.fromEnvironment();
+final core = config.isConfigured ? await ForgeCore.initialize(config) : null;
+// core == null: a build with no backend; the app keeps working locally.
+core?.auth.changes.listen((state) => /* signed in? */ state.isSignedIn);
+```
+
+Widget tests use `FakeForgeAuth` from `package:forge_core/testing.dart`
+instead of a client, so nothing touches the network.
 
 The full design is in
 [`docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`](docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md).
