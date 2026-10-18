@@ -34,6 +34,13 @@ class FakeForgeAuth implements ForgeAuth {
   ForgeAuthResult? resetResult;
   ForgeAuthResult updatePasswordResult = const ForgeAuthSuccess(fakeSession);
 
+  /// Scripted results for linking. Defaults: linking Google adds a Google
+  /// identity to the current session; unlinking removes the given one.
+  ForgeAuthResult? linkGoogleResult;
+  ForgeAuthResult? unlinkResult;
+  int linkGoogleCalls = 0;
+  final List<ForgeIdentity> unlinks = [];
+
   /// What the app asked for, in order.
   final List<(String, String)> signUps = [];
   final List<(String, String)> signIns = [];
@@ -49,6 +56,7 @@ class FakeForgeAuth implements ForgeAuth {
     identities: [
       ForgeIdentity(
         id: 'fake-google',
+        identityId: 'fake-google-link',
         provider: ForgeIdentityProvider.google,
         email: 'fake@example.com',
       ),
@@ -119,6 +127,84 @@ class FakeForgeAuth implements ForgeAuth {
   Future<ForgeAuthResult> updatePassword(String newPassword) async {
     passwordUpdates.add(newPassword);
     return _settle(updatePasswordResult);
+  }
+
+  @override
+  Future<ForgeAuthResult> linkGoogle() async {
+    linkGoogleCalls++;
+    final scripted = linkGoogleResult;
+    if (scripted != null) return _update(scripted);
+    final session = _current.session;
+    if (session == null) {
+      return const ForgeAuthFailure(
+        ForgeAuthError.sessionMissing,
+        'no session',
+      );
+    }
+    final linked = ForgeSession(
+      userId: session.userId,
+      email: session.email,
+      emailConfirmed: session.emailConfirmed,
+      createdAt: session.createdAt,
+      identities: [
+        ...session.identities,
+        ForgeIdentity(
+          id: 'fake-google',
+          identityId: 'fake-google-link',
+          provider: ForgeIdentityProvider.google,
+          email: session.email,
+        ),
+      ],
+    );
+    return _update(ForgeAuthSuccess(linked));
+  }
+
+  @override
+  Future<ForgeAuthResult> unlinkIdentity(ForgeIdentity identity) async {
+    unlinks.add(identity);
+    final scripted = unlinkResult;
+    if (scripted != null) return _update(scripted);
+    final session = _current.session;
+    if (session == null) {
+      return const ForgeAuthFailure(
+        ForgeAuthError.sessionMissing,
+        'no session',
+      );
+    }
+    if (session.identities.length <= 1) {
+      return const ForgeAuthFailure(
+        ForgeAuthError.lastSignInMethod,
+        'only sign-in method',
+      );
+    }
+    final remaining = ForgeSession(
+      userId: session.userId,
+      email: session.email,
+      emailConfirmed: session.emailConfirmed,
+      createdAt: session.createdAt,
+      identities: [
+        for (final i in session.identities)
+          if (i.identityId != identity.identityId) i,
+      ],
+    );
+    return _update(ForgeAuthSuccess(remaining));
+  }
+
+  @override
+  Future<ForgeAuthResult> setPassword(String password) =>
+      updatePassword(password);
+
+  /// A success replaces the session without a sign-in event (userUpdated).
+  ForgeAuthResult _update(ForgeAuthResult result) {
+    if (result is ForgeAuthSuccess) {
+      emit(
+        ForgeAuthState(
+          event: ForgeAuthEvent.userUpdated,
+          session: result.session,
+        ),
+      );
+    }
+    return result;
   }
 
   /// A success also signs the fake in, as the real stream would.

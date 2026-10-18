@@ -48,6 +48,13 @@ enum ForgeAuthError {
   /// A call that needs a signed-in user ran without one (for example
   /// setting a password from a stale reset link).
   sessionMissing,
+
+  // Identity linking (FC-6).
+  /// That Google account (or address) already belongs to another user.
+  identityAlreadyLinked,
+
+  /// Unlinking refused: it is the account's only way to sign in.
+  lastSignInMethod,
   unknown,
 }
 

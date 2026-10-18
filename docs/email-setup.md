@@ -64,3 +64,21 @@ What an app on `forge_core` needs before `signUpWithEmail`,
   them.
 - `invalid_credentials` deliberately does not say whether the address or
   the password was wrong; the app's copy should not either.
+
+## Linking sign-in methods
+
+One account, both methods. Supabase links a Google sign-in whose verified
+email matches an existing email account by itself. Beyond that:
+
+- `linkGoogle()` attaches the picked Google account to the signed-in user
+  (native, `linkIdentityWithIdToken`). It needs **Allow manual linking** on
+  under Authentication → Providers; otherwise `misconfigured`. A Google
+  account that already belongs to another user is `identityAlreadyLinked`:
+  tell the user to sign in with that account instead.
+- `setPassword(password)` adds email/password to a Google-only account
+  (`updatePassword` under the account page's name).
+- `unlinkIdentity(identity)` removes a method; the package refuses the last
+  one (`lastSignInMethod`) before any request, and the server refuses when
+  removing it would leave the email in conflict.
+- After any of these, `changes` emits `userUpdated` with the new identity
+  list; the account page re-renders from that.

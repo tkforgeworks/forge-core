@@ -45,16 +45,22 @@ void main() {
       expect(session.identities, [
         const ForgeIdentity(
           id: 'id-google',
+
+          identityId: 'iid-google',
           provider: ForgeIdentityProvider.google,
           email: 'tim@gmail.example',
         ),
         const ForgeIdentity(
           id: 'id-email',
+
+          identityId: 'iid-email',
           provider: ForgeIdentityProvider.email,
           email: 'tim@example.com',
         ),
         const ForgeIdentity(
           id: 'id-phone',
+
+          identityId: 'iid-phone',
           provider: ForgeIdentityProvider.other,
         ),
       ]);
