@@ -15,11 +15,14 @@ class ForgeSupabaseConfig {
     required this.url,
     required this.publishableKey,
     this.googleWebClientId = '',
+    this.authRedirectUrl = '',
   });
 
   /// Reads [urlDefine], [publishableKeyDefine] and [googleWebClientIdDefine]
   /// from the build's `--dart-define`s; each is empty when absent.
-  const ForgeSupabaseConfig.fromEnvironment()
+  /// [authRedirectUrl] is app code, not configuration: pass the app's own
+  /// custom scheme.
+  const ForgeSupabaseConfig.fromEnvironment({this.authRedirectUrl = ''})
     : url = const String.fromEnvironment(urlDefine),
       publishableKey = const String.fromEnvironment(publishableKeyDefine),
       googleWebClientId = const String.fromEnvironment(googleWebClientIdDefine);
@@ -41,6 +44,13 @@ class ForgeSupabaseConfig {
   /// Empty when the app offers no Google sign-in.
   final String googleWebClientId;
 
+  /// Where confirmation and password-reset emails send the user back to:
+  /// the app's custom scheme, `<applicationId>://auth-callback`, which must
+  /// also be on the Supabase project's redirect allow list and declared as
+  /// an `intent-filter` in the Android manifest. Empty means the project's
+  /// Site URL (a web page), which no app wants.
+  final String authRedirectUrl;
+
   /// True when the app can reach a Supabase project at all.
   bool get isConfigured => url.isNotEmpty && publishableKey.isNotEmpty;
 
@@ -53,10 +63,12 @@ class ForgeSupabaseConfig {
       other is ForgeSupabaseConfig &&
           other.url == url &&
           other.publishableKey == publishableKey &&
-          other.googleWebClientId == googleWebClientId;
+          other.googleWebClientId == googleWebClientId &&
+          other.authRedirectUrl == authRedirectUrl;
 
   @override
-  int get hashCode => Object.hash(url, publishableKey, googleWebClientId);
+  int get hashCode =>
+      Object.hash(url, publishableKey, googleWebClientId, authRedirectUrl);
 
   /// Never prints the key.
   @override

@@ -55,6 +55,26 @@ void main() {
       );
     });
 
+    test('the redirect URL is app code, carried alongside the defines', () {
+      const config = ForgeSupabaseConfig.fromEnvironment(
+        authRedirectUrl: 'com.example.app://auth-callback',
+      );
+      expect(config.authRedirectUrl, 'com.example.app://auth-callback');
+      expect(config.isConfigured, isFalse);
+      expect(
+        const ForgeSupabaseConfig(url: 'u', publishableKey: 'k'),
+        isNot(
+          equals(
+            const ForgeSupabaseConfig(
+              url: 'u',
+              publishableKey: 'k',
+              authRedirectUrl: 'x://y',
+            ),
+          ),
+        ),
+      );
+    });
+
     test('the dart-define names are the documented ones', () {
       expect(ForgeSupabaseConfig.urlDefine, 'FORGE_SUPABASE_URL');
       expect(
