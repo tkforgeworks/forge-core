@@ -47,8 +47,9 @@ API enabled.
 - Leave "Skip nonce check" off: `PluginGoogleIdTokenSource` sends one nonce
   per process (SHA-256 to Google, the raw value to Supabase).
 - Authentication → URL configuration: add the app's custom scheme
-  `<applicationId>://auth-callback` to the redirect allow list. Google does
-  not use it, but the email flows (FC-5) do.
+  `<applicationId>://auth-callback` to the redirect allow list (with any
+  underscore in the id dropped: a scheme cannot contain one, see
+  `email-setup.md`). Google does not use it, but the email flows (FC-5) do.
 
 ## Behaviour notes
 

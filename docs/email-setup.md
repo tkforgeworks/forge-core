@@ -29,6 +29,15 @@ What an app on `forge_core` needs before `signUpWithEmail`,
   'com.example.app://auth-callback')`. `forge_core` sends it as
   `redirect_to` on sign-up, resend and reset, so the links in those mails
   open the app.
+- **The scheme must be a valid URL scheme**: letters, digits, `+`, `-` and
+  `.` only. An application id with an underscore (`com.example.my_app`)
+  cannot be used as is; drop the underscore
+  (`com.example.myapp://auth-callback`) and use that same string in the
+  manifest and the allow list. GoTrue validates `redirect_to` with Go's URL
+  parser before it consults the allow list, so an unparsable scheme is
+  silently replaced by the Site URL in every mail, and Dart's `Uri.parse`
+  rejects the incoming link as well. `SupabaseForgeAuth` asserts on an
+  invalid value (cheesy-scribe hit this on its first RC).
 - Declare the scheme in `android/app/src/main/AndroidManifest.xml`, inside
   the main `<activity>`:
 
