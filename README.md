@@ -123,6 +123,15 @@ from the pinned version. Deploying them is
 [`docs/supabase-deploy.md`](docs/supabase-deploy.md); deletion end to end is
 [`docs/deletion.md`](docs/deletion.md).
 
+## Privacy
+
+Every app on the packages collects the same account data, so the data
+inventory and the privacy policy are written once:
+[`docs/privacy/`](docs/privacy/) has the `PRIVACY.md` template (with the
+Play Data safety mapping and the store checklist) and the policy page
+template in the tkforgeworks voice. Fill in the placeholders and add only
+what your app adds.
+
 The full design is in
 [`docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`](docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md).
 
