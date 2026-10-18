@@ -49,6 +49,13 @@ class ForgeSupabaseConfig {
   /// also be on the Supabase project's redirect allow list and declared as
   /// an `intent-filter` in the Android manifest. Empty means the project's
   /// Site URL (a web page), which no app wants.
+  ///
+  /// The scheme must be a valid URL scheme (letters, digits, `+`, `-`,
+  /// `.`). An application id with an underscore cannot be used verbatim:
+  /// `com.example.my_app` becomes `com.example.myapp://auth-callback`.
+  /// GoTrue falls back to the Site URL for a redirect it cannot parse,
+  /// allow list or not, and Dart's `Uri` rejects it too;
+  /// `SupabaseForgeAuth` asserts on it.
   final String authRedirectUrl;
 
   /// True when the app can reach a Supabase project at all.

@@ -73,7 +73,26 @@ abstract class ForgeAuth {
 /// scheme).
 class SupabaseForgeAuth implements ForgeAuth {
   SupabaseForgeAuth(this._auth, {this._google, String emailRedirectUrl = ''})
-    : _redirect = emailRedirectUrl.isEmpty ? null : emailRedirectUrl;
+    : assert(
+        isValidRedirectUrl(emailRedirectUrl),
+        'emailRedirectUrl "$emailRedirectUrl" is not a valid URL. A scheme '
+        'may only contain letters, digits, "+", "-" and ".", so an '
+        'application id with an underscore cannot be used as is: drop '
+        'the underscore (com.example.myapp://auth-callback).',
+      ),
+      _redirect = emailRedirectUrl.isEmpty ? null : emailRedirectUrl;
+
+  /// Whether [url] can serve as the mails' redirect: empty (the project's
+  /// Site URL), or a URL both Dart and GoTrue can parse. GoTrue silently
+  /// falls back to the Site URL for a redirect it cannot parse, even when
+  /// the allow list names it, and an Android application id with an
+  /// underscore (`com.example.my_app`) is exactly that: `_` is not a scheme
+  /// character.
+  static bool isValidRedirectUrl(String url) {
+    if (url.isEmpty) return true;
+    final parsed = Uri.tryParse(url);
+    return parsed != null && parsed.hasScheme && parsed.host.isNotEmpty;
+  }
 
   final sb.GoTrueClient _auth;
   final GoogleIdTokenSource? _google;
