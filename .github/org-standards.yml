@@ -14,15 +14,6 @@ deviations:
       repo was set up.
     since: 2026-10-10
 
-  - standard: branching-and-release
-    item: no Jira key in topic branch names or commit subjects
-    kind: parameter
-    reason: >
-      No Jira project exists for forge-core yet; the owner chose to set one up
-      later. Until then topic branches are vX.Y.Z/<short-topic> and commit
-      subjects carry no ticket key. Remove this entry once a key is assigned.
-    since: 2026-10-10
-
   - standard: release-flutter
     item: release pipeline not adopted yet
     kind: opt-out
