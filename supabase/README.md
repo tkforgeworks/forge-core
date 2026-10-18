@@ -7,8 +7,8 @@ check in each app's tests fails if they differ.
 
 | Folder | Contents |
 | --- | --- |
-| `migrations/` | `*_forge_accounts.sql` (the `accounts` table, trigger, `forge_account_active()`, `set_username()`, `request_account_deletion()`), `*_forge_purge.sql` (purge trigger + `pg_cron` retry via `pg_net`); later the web-deletion token table |
-| `functions/` | Edge Functions: `forge-purge` (deployed with `--no-verify-jwt`; shared token in `FORGE_PURGE_TOKEN` and Vault), web deletion request and confirm (FC-10) |
+| `migrations/` | `*_forge_accounts.sql` (the `accounts` table, trigger, `forge_account_active()`, `set_username()`, `request_account_deletion()`), `*_forge_purge.sql` (purge trigger + `pg_cron` retry via `pg_net`), `*_forge_web_deletion.sql` (`forge_private.deletion_tokens`, `forge_create_deletion_token()`, `forge_confirm_deletion()`, nightly prune) |
+| `functions/` | Edge Functions, all deployed with `--no-verify-jwt`: `forge-purge` (shared token in `FORGE_PURGE_TOKEN` and Vault), `forge-delete-request` (website → token + Resend mail), `forge-delete-confirm` (link → flag); `_shared/mail.ts` renders and sends the mail |
 | `templates/` | The auth email templates, pasted into the dashboard |
 | `smoke/` | SQL smoke tests that run against a project and roll back |
 

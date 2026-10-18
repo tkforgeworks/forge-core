@@ -221,15 +221,33 @@ secrets via `forge_delete_user_secrets` RPC if an app defines it,
 for these), migration applied and recorded; a throwaway user was purged end
 to end. Gotcha: a raw `insert into auth.users` must set the token columns
 to `''` and metadata to `'{}'` or GoTrue's admin API fails with "Database
-error loading user". The ticket map for v0.1.0 is FC-10..FC-12 (see
-CHEESE-57's 2026-10-18 comment for the order).
+error loading user". Shipped as `v0.1.0-rc.7`. FC-10: web deletion.
+`20261018140000_forge_web_deletion.sql` (`forge_private.deletion_tokens`
+in a schema PostgREST does not expose; `forge_create_deletion_token(email)`
+returns a raw token and stores its SHA-256 with a 24 h expiry, null for an
+unknown address; `forge_confirm_deletion(token)` consumes it and flags the
+account; nightly `forge-prune-deletion-tokens`; both callable by
+`service_role` only), Edge Functions `forge-delete-request` (website →
+shared `FORGE_WEB_DELETE_SECRET` header → token → Resend mail via
+`_shared/mail.ts`; always `200 {ok:true}`) and `forge-delete-confirm`
+(`?token=` → 303 to `FORGE_SITE_URL/?status=done|invalid`). **Deployed to
+the cheesy-scribe project** with `FORGE_WEB_DELETE_SECRET` (copy for the
+website step at `~/.supabase/forge-web-delete-secret.cheesy-scribe`, mode
+600), `FORGE_APP_NAME`, `FORGE_SITE_URL`; **`RESEND_API_KEY` and
+`FORGE_MAIL_FROM` are still Tim's to set** (`supabase secrets set …
+--project-ref pqcpiggcmuspmbdhwiij`), so the mail step is unverified until
+then; everything else (auth, token issue, confirm, flag, purge) was
+exercised live. The website page and Pages Function are TKFW-83. The
+ticket map for v0.1.0 is FC-11..FC-12 (see CHEESE-57's 2026-10-18 comment
+for the order).
 
 ## Next actions
 
 1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
    FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done),
-   FC-8 (done), FC-9 (done, deployed)
+   FC-8 (done), FC-9 (done, deployed), FC-10 (done, deployed; mail secrets
+   pending)
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,
