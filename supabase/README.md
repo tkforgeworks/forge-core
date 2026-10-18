@@ -7,8 +7,8 @@ check in each app's tests fails if they differ.
 
 | Folder | Contents |
 | --- | --- |
-| `migrations/` | `*_forge_*.sql`: the `accounts` table, trigger, `forge_account_active()`, `set_username()`, `request_account_deletion()`; later the purge job and the web-deletion token table |
-| `functions/` | Edge Functions: purge, web deletion request and confirm (FC-9, FC-10) |
+| `migrations/` | `*_forge_accounts.sql` (the `accounts` table, trigger, `forge_account_active()`, `set_username()`, `request_account_deletion()`), `*_forge_purge.sql` (purge trigger + `pg_cron` retry via `pg_net`); later the web-deletion token table |
+| `functions/` | Edge Functions: `forge-purge` (deployed with `--no-verify-jwt`; shared token in `FORGE_PURGE_TOKEN` and Vault), web deletion request and confirm (FC-10) |
 | `templates/` | The auth email templates, pasted into the dashboard |
 | `smoke/` | SQL smoke tests that run against a project and roll back |
 

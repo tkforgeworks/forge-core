@@ -21,9 +21,9 @@ work the same everywhere.
   that act on `auth.uid()`:
   - `set_username(text)`: trims, clears on blank, refuses > 40 and refuses
     when the account is pending deletion.
-  - `request_account_deletion()`: sets the flag (idempotent) and nothing
-    else; `forge_core`'s `deleteAccount()` (FC-9) calls it, signs out
-    everywhere and starts the purge.
+  - `request_account_deletion()`: sets the flag (idempotent);
+    `deleteAccount()` calls it and signs out everywhere. The flag's trigger
+    starts the purge and a cron job retries it: see `docs/deletion.md`.
 - `forge_account_active()` is true while the caller's account has no
   deletion flag. It is `security definer` so it can read `accounts` from
   inside another table's policy.

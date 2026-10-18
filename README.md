@@ -92,6 +92,7 @@ redirect allow list) and the Android intent filter are in
 ```dart
 final account = await core.accounts.getAccount();   // ForgeResult<ForgeAccount?>
 await core.accounts.setUsername('Tim');
+await core.accounts.deleteAccount();                // flags, signs out everywhere; see docs/deletion.md
 
 final notes = core.entries<TastingNote>(
   kind: 'tasting_note',

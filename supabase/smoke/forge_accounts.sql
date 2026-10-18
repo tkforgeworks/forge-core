@@ -5,9 +5,12 @@
 begin;
 
 -- A throwaway auth user; the trigger must give it an account row.
-insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at,
+        confirmation_token, recovery_token, email_change_token_new, email_change, email_change_token_current,
+        phone_change, phone_change_token, reauthentication_token, raw_app_meta_data, raw_user_meta_data, is_sso_user, is_anonymous)
 values ('00000000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000',
-        'authenticated', 'authenticated', 'smoke@example.com', '', now(), now());
+        'authenticated', 'authenticated', 'smoke@example.com', '', now(), now(),
+        '', '', '', '', '', '', '', '', '{}', '{}', false, false);
 
 do $$
 begin

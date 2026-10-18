@@ -22,6 +22,11 @@ abstract class ForgeAccounts {
   /// [maxUsernameLength] characters.
   Future<ForgeResult<ForgeAccount>> setUsername(String? username);
 
+  /// Deletes the account: flags it for the purge (access ends at once) and
+  /// signs out on every device. The server removes everything within the
+  /// purge window; what happens to the app's local data is the app's call.
+  Future<ForgeResult<void>> deleteAccount();
+
   static const maxUsernameLength = 40;
 }
 
@@ -47,6 +52,18 @@ class SupabaseForgeAccounts implements ForgeAccounts {
   @override
   Stream<ForgeResult<ForgeAccount?>> watchAccount() =>
       _auth.changes.asyncMap((_) => getAccount());
+
+  @override
+  Future<ForgeResult<void>> deleteAccount() => forgeGuard(() async {
+    if (_auth.current.session == null) {
+      throw const ForgeDataException(
+        ForgeDataError.sessionMissing,
+        'Not signed in',
+      );
+    }
+    await _client.rpc<void>('request_account_deletion');
+    await _auth.signOut(everywhere: true);
+  });
 
   @override
   Future<ForgeResult<ForgeAccount>> setUsername(String? username) =>
