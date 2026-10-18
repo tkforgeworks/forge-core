@@ -5,6 +5,68 @@ import 'dart:async';
 
 import 'package:forge_core/forge_core.dart';
 
+/// A [ForgeAccounts] over an in-memory row that follows a [FakeForgeAuth].
+class FakeForgeAccounts implements ForgeAccounts {
+  FakeForgeAccounts(this.auth, {this.username});
+
+  final FakeForgeAuth auth;
+
+  /// The stored username; set it directly to seed a test.
+  String? username;
+
+  /// The account's creation time, for "member since".
+  DateTime createdAt = DateTime.utc(2026, 1, 1);
+
+  /// Set to make the next call fail.
+  ForgeDataError? nextError;
+
+  /// Every value [setUsername] received, in order.
+  final List<String?> usernameWrites = [];
+
+  ForgeAccount? get _row {
+    final session = auth.current.session;
+    return session == null
+        ? null
+        : ForgeAccount(
+            userId: session.userId,
+            username: username,
+            createdAt: createdAt,
+          );
+  }
+
+  ForgeResult<T>? _failure<T>() {
+    final error = nextError;
+    if (error == null) return null;
+    nextError = null;
+    return ForgeFailed<T>(error, error.name);
+  }
+
+  @override
+  Future<ForgeResult<ForgeAccount?>> getAccount() async =>
+      _failure<ForgeAccount?>() ?? ForgeOk(_row);
+
+  @override
+  Stream<ForgeResult<ForgeAccount?>> watchAccount() =>
+      auth.changes.asyncMap((_) => getAccount());
+
+  @override
+  Future<ForgeResult<ForgeAccount>> setUsername(String? value) async {
+    usernameWrites.add(value);
+    final failed = _failure<ForgeAccount>();
+    if (failed != null) return failed;
+    final row = _row;
+    if (row == null) {
+      return const ForgeFailed(ForgeDataError.sessionMissing, 'Not signed in');
+    }
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.length > ForgeAccounts.maxUsernameLength) {
+      return const ForgeFailed(ForgeDataError.invalid, 'too long');
+    }
+    username = trimmed.isEmpty ? null : trimmed;
+    return ForgeOk(_row!);
+  }
+}
+
 /// A [ForgeAuth] a test drives by hand: set the session, emit events, and
 /// check what the app asked for.
 class FakeForgeAuth implements ForgeAuth {

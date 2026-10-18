@@ -6,6 +6,8 @@
 /// `package:forge_core/testing.dart`.
 library;
 
+export 'src/account/forge_account.dart';
+export 'src/account/forge_accounts.dart' show ForgeAccounts;
 export 'src/auth/forge_auth.dart' show ForgeAuth;
 export 'src/auth/forge_auth_result.dart';
 export 'src/auth/forge_session.dart';
@@ -17,3 +19,4 @@ export 'src/auth/google_id_token_source.dart'
         GoogleIdTokenSource;
 export 'src/config/forge_supabase_config.dart';
 export 'src/forge_core.dart';
+export 'src/forge_result.dart';
