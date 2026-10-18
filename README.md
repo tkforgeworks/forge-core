@@ -111,6 +111,18 @@ migration and the `entries` template an app copies into its own
 migrations) is under `supabase/`, with the rules every app table follows in
 [`docs/data-model.md`](docs/data-model.md).
 
+## Supabase files in your app
+
+```sh
+dart run forge_core:sync_supabase   # copy migrations, functions, templates; write supabase/forge_core.lock
+```
+
+and one test, `expect(await forgeSupabaseDrift(), isEmpty)` from
+`package:forge_core/sync_check.dart`, so the copies cannot quietly diverge
+from the pinned version. Deploying them is
+[`docs/supabase-deploy.md`](docs/supabase-deploy.md); deletion end to end is
+[`docs/deletion.md`](docs/deletion.md).
+
 The full design is in
 [`docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`](docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md).
 

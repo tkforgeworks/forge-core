@@ -1,9 +1,11 @@
 # Supabase files shipped with forge_core
 
 What an app copies into its own `supabase/` folder at the forge_core tag it
-pins (`dart run forge_core:sync_supabase`, FC-11) and deploys with the
-Supabase CLI. Policy lives here; apps never edit the copies, and a drift
-check in each app's tests fails if they differ.
+pins (`dart run forge_core:sync_supabase`, which also writes
+`supabase/forge_core.lock`) and deploys per `docs/supabase-deploy.md`.
+Policy lives here; apps never edit the copies, and `forgeSupabaseDrift()`
+from `package:forge_core/sync_check.dart` in each app's tests fails if they
+differ.
 
 | Folder | Contents |
 | --- | --- |

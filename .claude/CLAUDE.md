@@ -238,8 +238,17 @@ website step at `~/.supabase/forge-web-delete-secret.cheesy-scribe`, mode
 --project-ref pqcpiggcmuspmbdhwiij`), so the mail step is unverified until
 then; everything else (auth, token issue, confirm, flag, purge) was
 exercised live. The website page and Pages Function are TKFW-83. The
-ticket map for v0.1.0 is FC-11..FC-12 (see CHEESE-57's 2026-10-18 comment
-for the order).
+Shipped as `v0.1.0-rc.8`. FC-11: `dart run forge_core:sync_supabase`
+(`bin/`, pure Dart; copies `*_forge_*` migrations, `forge-*` functions +
+`_shared`, templates into the app's `supabase/`, writes
+`supabase/forge_core.lock`; `--check` lists drift and exits 1),
+`package:forge_core/sync_check.dart` with `forgeSupabaseDrift()` for the
+app's test, `lib/src/sync/supabase_files.dart` (no Flutter imports so the
+executable runs under the plain VM; `packageRoot()` uses
+`Isolate.resolvePackageUri`, which `flutter test` does not support, so it
+falls back to the nearest `.dart_tool/package_config.json`),
+`docs/supabase-deploy.md` runbook. The ticket map for v0.1.0 is FC-12 (see
+CHEESE-57's 2026-10-18 comment).
 
 ## Next actions
 
@@ -247,7 +256,7 @@ for the order).
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
    FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done),
    FC-8 (done), FC-9 (done, deployed), FC-10 (done, deployed; mail secrets
-   pending)
+   pending), FC-11 (done)
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,
