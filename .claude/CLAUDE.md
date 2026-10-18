@@ -247,8 +247,15 @@ app's test, `lib/src/sync/supabase_files.dart` (no Flutter imports so the
 executable runs under the plain VM; `packageRoot()` uses
 `Isolate.resolvePackageUri`, which `flutter test` does not support, so it
 falls back to the nearest `.dart_tool/package_config.json`),
-`docs/supabase-deploy.md` runbook. The ticket map for v0.1.0 is FC-12 (see
-CHEESE-57's 2026-10-18 comment).
+`docs/supabase-deploy.md` runbook. Shipped as `v0.1.0-rc.9`. FC-12:
+`docs/privacy/PRIVACY.template.md` (inventory + Play/Apple mapping +
+compliance checklist), `docs/privacy/policy.template.md` (the website
+policy page in Tim's voice, modelled on cheesy-scribe's live one and
+extended for accounts, sign-out and deletion), `docs/privacy/README.md`
+(placeholders). **With FC-12 every v0.1.0 ticket is done**; `v0.1.0` goes
+final after cheesy-scribe's device pass (CHEESE-67) pins and proves the
+RCs. Remaining before final: Tim's `RESEND_API_KEY` + `FORGE_MAIL_FROM`
+function secrets, and anything the app adoption exposes.
 
 ## Next actions
 
@@ -256,7 +263,7 @@ CHEESE-57's 2026-10-18 comment).
    (done) client wrapper + session stream, FC-4 (done) Google sign-in,
    FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done),
    FC-8 (done), FC-9 (done, deployed), FC-10 (done, deployed; mail secrets
-   pending), FC-11 (done)
+   pending), FC-11 (done), FC-12 (done). All v0.1.0 tickets are done.
    `accounts` migration + functions, FC-8 `entries` template + repository
    helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
    and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,
