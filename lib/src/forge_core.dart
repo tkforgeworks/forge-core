@@ -4,6 +4,7 @@ import 'account/forge_accounts.dart';
 import 'auth/forge_auth.dart';
 import 'auth/google_id_token_source.dart';
 import 'config/forge_supabase_config.dart';
+import 'data/forge_entries_repository.dart';
 
 /// The app's handle on its Supabase project: one initialised client and the
 /// plain-typed services over it. Create it once in `main()` with
@@ -63,6 +64,22 @@ class ForgeCore {
 
   /// The signed-in user's account row (username, created date, deletion).
   late final ForgeAccounts accounts;
+
+  /// A typed repository over one `kind` of the app's `entries` table (see
+  /// `supabase/templates/entries.sql` and `docs/data-model.md`).
+  ForgeEntriesRepository<T> entries<T>({
+    required String kind,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required Map<String, dynamic> Function(T value) toJson,
+    String table = 'entries',
+  }) => SupabaseForgeEntriesRepository<T>(
+    client,
+    auth,
+    kind: kind,
+    fromJson: fromJson,
+    toJson: toJson,
+    table: table,
+  );
 
   /// Releases the client's resources (tests; apps live as long as the
   /// process).

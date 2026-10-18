@@ -5,6 +5,111 @@ import 'dart:async';
 
 import 'package:forge_core/forge_core.dart';
 
+/// A [ForgeEntriesRepository] over an in-memory table, for app sync tests.
+/// Seed or inspect [rows]; use [remoteUpsert] to play another device.
+class FakeForgeEntriesRepository<T> implements ForgeEntriesRepository<T> {
+  FakeForgeEntriesRepository(this.auth, {this.pageSize = 500});
+
+  final FakeForgeAuth auth;
+  final int pageSize;
+
+  /// The server's rows by id.
+  final Map<String, ForgeEntry<T>> rows = {};
+
+  /// Set to make the next call fail.
+  ForgeDataError? nextError;
+
+  /// Every call made, as `(name, argument)`, in order.
+  final List<(String, Object?)> calls = [];
+
+  ForgeResult<R>? _check<R>(String name, Object? arg) {
+    calls.add((name, arg));
+    final error = nextError;
+    if (error != null) {
+      nextError = null;
+      return ForgeFailed<R>(error, error.name);
+    }
+    if (auth.current.session == null) {
+      return const ForgeFailed(ForgeDataError.sessionMissing, 'Not signed in');
+    }
+    return null;
+  }
+
+  /// Another device wrote these rows.
+  void remoteUpsert(Iterable<ForgeEntry<T>> entries) {
+    for (final e in entries) {
+      rows[e.id] = e;
+    }
+  }
+
+  @override
+  Future<ForgeResult<void>> upsertAll(Iterable<ForgeEntry<T>> entries) async {
+    final list = entries.toList();
+    final failed = _check<void>('upsertAll', list);
+    if (failed != null) return failed;
+    for (final e in list) {
+      rows[e.id] = ForgeEntry<T>(
+        id: e.id,
+        data: e.isDeleted ? null : e.data,
+        updatedAt: e.updatedAt,
+        createdAt: rows[e.id]?.createdAt ?? e.createdAt ?? e.updatedAt,
+        deletedAt: e.deletedAt,
+      );
+    }
+    return const ForgeOk(null);
+  }
+
+  @override
+  Future<ForgeResult<List<ForgeEntryKey>>> listKeys({DateTime? since}) async {
+    final failed = _check<List<ForgeEntryKey>>('listKeys', since);
+    if (failed != null) return failed;
+    final keys =
+        [
+          for (final e in rows.values)
+            if (since == null || e.updatedAt.isAfter(since))
+              ForgeEntryKey(
+                id: e.id,
+                updatedAt: e.updatedAt,
+                deletedAt: e.deletedAt,
+              ),
+        ]..sort((a, b) {
+          final byTime = a.updatedAt.compareTo(b.updatedAt);
+          return byTime != 0 ? byTime : a.id.compareTo(b.id);
+        });
+    return ForgeOk(keys);
+  }
+
+  @override
+  Future<ForgeResult<List<ForgeEntry<T>>>> fetchByIds(
+    Iterable<String> ids,
+  ) async {
+    final list = ids.toList();
+    final failed = _check<List<ForgeEntry<T>>>('fetchByIds', list);
+    if (failed != null) return failed;
+    return ForgeOk([for (final id in list) ?rows[id]]);
+  }
+
+  @override
+  Future<ForgeResult<void>> markDeleted(
+    Iterable<String> ids,
+    DateTime at,
+  ) async {
+    final list = ids.toList();
+    final failed = _check<void>('markDeleted', list);
+    if (failed != null) return failed;
+    for (final id in list) {
+      rows[id] = ForgeEntry<T>(
+        id: id,
+        data: null,
+        updatedAt: at,
+        createdAt: rows[id]?.createdAt ?? at,
+        deletedAt: at,
+      );
+    }
+    return const ForgeOk(null);
+  }
+}
+
 /// A [ForgeAccounts] over an in-memory row that follows a [FakeForgeAuth].
 class FakeForgeAccounts implements ForgeAccounts {
   FakeForgeAccounts(this.auth, {this.username});

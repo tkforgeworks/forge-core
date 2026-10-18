@@ -54,18 +54,41 @@ create policy "entries: own rows" on public.entries
 4. **Wrap `auth.uid()` in `(select …)`** so Postgres evaluates it once per
    statement rather than per row.
 
+## `entries` (the app's user data)
+
+`supabase/templates/entries.sql` is the one table shape an app copies into
+its own migrations (after the forge_accounts one) for everything the user
+creates: `id` and `updated_at` are **client-supplied** so a device can
+create offline and push later with the newest change winning; `kind`
+separates an app's types inside one table; `data` is the app's JSON;
+`deleted_at` is a tombstone with `data = '{}'` enforced by a check, kept so
+other devices learn about the deletion. The policy is the rule above
+(`own rows` + `forge_account_active()`), and
+`(user_id, updated_at, id)` is indexed for the sync's key listing.
+`supabase/smoke/entries.sql` exercises it (upsert replaces, another user's
+row is refused, a tombstone must be empty, access ends on deletion) and
+rolls back.
+
 ## In Dart
 
 `core.accounts` (`ForgeAccounts`): `getAccount()`, `watchAccount()` (re-read
-on every auth change), `setUsername()`. Every call returns a `ForgeResult`
-(`ForgeOk(value)` or `ForgeFailed(ForgeDataError, message)`) and never
-throws. `FakeForgeAccounts` in `package:forge_core/testing.dart` follows a
-`FakeForgeAuth`.
+on every auth change), `setUsername()`. `core.entries<T>(kind:, fromJson:,
+toJson:)` (`ForgeEntriesRepository<T>`): `upsertAll`, `listKeys({since})`
+(paged, oldest change first), `fetchByIds`, `markDeleted(ids, at)`; these
+four are exactly what an app-side last-write-wins sync needs. Every call
+returns a `ForgeResult` (`ForgeOk(value)` or `ForgeFailed(ForgeDataError,
+message)`) and never throws. `FakeForgeAccounts` and
+`FakeForgeEntriesRepository` in `package:forge_core/testing.dart` follow a
+`FakeForgeAuth`; the latter's `remoteUpsert` plays a second device.
 
 ## Verifying the SQL
 
-No local Postgres (Docker is too heavy on the dev box), so the migration is
-checked against a real project: apply it, then run
-`supabase/smoke/forge_accounts.sql`, which creates a throwaway auth user,
-exercises the trigger, both functions and the policy as that user, and
-rolls everything back.
+No local Postgres (Docker is too heavy on the dev box), so SQL is checked
+against the real project through the Management API's query endpoint with
+a project-scoped access token (Database + Migrations read-write): apply a
+migration, then run its smoke file, which creates a throwaway auth user,
+exercises everything as that user, and rolls back. The entries template is
+checked the same way with the template prepended inside one rolled-back
+transaction. Migrations applied this way are also recorded in
+`supabase_migrations.schema_migrations` so an app's later `supabase db
+push` sees them as applied.

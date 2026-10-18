@@ -1,10 +1,8 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../auth/forge_auth.dart';
 import '../forge_result.dart';
+import '../supabase_errors.dart';
 import 'forge_account.dart';
 
 /// The signed-in user's account row: read it, watch it across sign-ins,
@@ -35,7 +33,7 @@ class SupabaseForgeAccounts implements ForgeAccounts {
   final ForgeAuth _auth;
 
   @override
-  Future<ForgeResult<ForgeAccount?>> getAccount() => _guard(() async {
+  Future<ForgeResult<ForgeAccount?>> getAccount() => forgeGuard(() async {
     final userId = _auth.current.session?.userId;
     if (userId == null) return null;
     final row = await _client
@@ -52,13 +50,17 @@ class SupabaseForgeAccounts implements ForgeAccounts {
 
   @override
   Future<ForgeResult<ForgeAccount>> setUsername(String? username) =>
-      _guard(() async {
+      forgeGuard(() async {
         if (_auth.current.session == null) {
-          throw const _SessionMissing();
+          throw const ForgeDataException(
+            ForgeDataError.sessionMissing,
+            'Not signed in',
+          );
         }
         final trimmed = username?.trim() ?? '';
         if (trimmed.length > ForgeAccounts.maxUsernameLength) {
-          throw const _Invalid(
+          throw const ForgeDataException(
+            ForgeDataError.invalid,
             'Usernames are at most ${ForgeAccounts.maxUsernameLength} '
             'characters',
           );
@@ -70,55 +72,18 @@ class SupabaseForgeAccounts implements ForgeAccounts {
         final after = await getAccount();
         return switch (after) {
           ForgeOk(:final value) when value != null => value,
-          ForgeOk() => throw const _Invalid('No account row for this user'),
-          ForgeFailed(:final error, :final message) => throw _Rethrow(
+          ForgeOk() => throw const ForgeDataException(
+            ForgeDataError.unknown,
+            'No account row for this user',
+          ),
+          ForgeFailed(:final error, :final message) => throw ForgeDataException(
             error,
             message,
           ),
         };
       });
 
-  Future<ForgeResult<T>> _guard<T>(Future<T> Function() body) async {
-    try {
-      return ForgeOk(await body());
-    } on _SessionMissing {
-      return const ForgeFailed(ForgeDataError.sessionMissing, 'Not signed in');
-    } on _Invalid catch (e) {
-      return ForgeFailed(ForgeDataError.invalid, e.message);
-    } on _Rethrow catch (e) {
-      return ForgeFailed(e.error, e.message);
-    } on sb.PostgrestException catch (e) {
-      return ForgeFailed(mapPostgrestException(e), e.message);
-    } on SocketException catch (e) {
-      return ForgeFailed(ForgeDataError.network, e.message);
-    } on TimeoutException catch (e) {
-      return ForgeFailed(ForgeDataError.network, e.message ?? 'timed out');
-    }
-  }
-
-  /// PostgREST / Postgres errors → ours. `28000` is the functions' "not
-  /// signed in"; `22001` their "too long"; `42501` is RLS refusing a write
-  /// (which the functions never cause, but a stale token might).
+  /// PostgREST / Postgres errors → ours (see `forgeDataErrorOf`).
   static ForgeDataError mapPostgrestException(sb.PostgrestException e) =>
-      switch (e.code) {
-        '28000' || 'PGRST301' || 'PGRST302' => ForgeDataError.sessionMissing,
-        '22001' || '23514' || '22P02' => ForgeDataError.invalid,
-        '42501' => ForgeDataError.accountInactive,
-        _ => ForgeDataError.unknown,
-      };
-}
-
-class _SessionMissing implements Exception {
-  const _SessionMissing();
-}
-
-class _Invalid implements Exception {
-  const _Invalid(this.message);
-  final String message;
-}
-
-class _Rethrow implements Exception {
-  const _Rethrow(this.error, this.message);
-  final ForgeDataError error;
-  final String message;
+      forgeDataErrorOf(e);
 }
