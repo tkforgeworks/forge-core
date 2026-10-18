@@ -6,8 +6,8 @@
 sign-in, account and data plumbing every tkforgeworks app shares, built on
 Supabase. Apps consume it as a git dependency pinned to a release tag. Its
 sibling `forge-ui` carries the brand look; the two packages never depend on
-each other. Current phase: repo setup done, spec revised for the first real
-consumer (cheesy-scribe 0.3.0, FC-1 on 2026-10-17); no package code yet.
+each other. Current phase: repo ready (FC-2), spec revised for the first real
+consumer (cheesy-scribe 0.3.0, FC-1); v0.1.0 code starts with FC-3.
 
 **The spec is `docs/forge-ui_forge-core_Shared_Flutter_Packages_Spec.md`
 and this repo holds the canonical copy** (decided 2026-10-17). forge-ui's
@@ -49,10 +49,18 @@ in the repo (including any under `docs/`) must be formatted.
   opens. **Never close a ticket unless asked** — comment "Actions taken" +
   commit hash and leave it for the human to verify. Work before FC-1 carries
   no key (the `org-standards.yml` deviation for that was removed in FC-1).
-- Releases: not set up yet. The plan is the org tagless pipeline
-  (`release-flutter.yml` with both platform builds off, plus the vendored
-  `scripts/release/bump-version.{ps1,sh}`), adopted in the first v0.1.0 code
-  PR. **Never hand-edit the version or push tags** once it is in place.
+- Releases (FC-2): `.github/workflows/release.yml` consumes the org
+  `release-flutter.yml` with both platform builds off and `ticket-prefix:
+  FC` (repo variable `JIRA_BASE_URL` links subjects), so a release is a tag
+  and a GitHub release with notes and no files. On `vX.Y.Z/main`,
+  `scripts/release/bump-version.sh rc` publishes prerelease `vX.Y.Z-rc.N`;
+  `bump-version.sh final` opens the release PR, and merging it into `main`
+  publishes `vX.Y.Z`. **Never hand-edit the version or push tags.**
+  `pubspec.yaml` holds the upcoming version (`0.1.0+1` now; the build
+  number means nothing for a package but the script needs it) with the
+  floor `sdk: ^3.13.2`, `flutter: ">=3.47.2"` so apps on Flutter 3.47.2
+  still resolve it. The bump scripts are the vendored org copies (same as
+  forge-ui's); don't edit them here.
 - License: **Apache-2.0** (`LICENSE` is the verbatim Apache text — never
   edit it). Image assets (`.svg`/`.png`/etc.) are **all rights reserved** via
   `NOTICE`. `pubspec.yaml` has no license field; pub reads `LICENSE`.
@@ -112,49 +120,50 @@ come from cheesy-scribe's planning ticket CHEESE-57.
 - Rule of three applies to ambiguous reuse only; high-reuse screens are
   built in forge-ui first (that is forge-ui's rule, recorded in the spec).
 
+Layout: `lib/forge_core.dart` is the only public library and exports
+everything under `lib/src/` (`config/` so far). Tests mirror it under
+`test/`. Public names are prefixed `Forge`.
+
 ## Current status
 
-As of 2026-10-17: org standards setup is on `main` (the `v0.0.1` batch), both
-rulesets are active, `v0.1.0/main` is cut, and the Jira project `FC` exists.
-The package is an empty skeleton with one placeholder test. The spec was
-revised for cheesy-scribe 0.3.0 in FC-1 (course corrections from CHEESE-57
-and Tim's decisions of 2026-10-17); the Oct 10 Apple-first milestones are
-superseded. Supabase: Tim has created the project (empty) and the org goes
-Pro from the start.
+2026-10-17: spec revised for cheesy-scribe 0.3.0 in FC-1 (course corrections
+from CHEESE-57 and Tim's decisions); the Oct 10 Apple-first milestones are
+superseded. Jira project `FC` created. Supabase: Tim created the project
+(empty); the org goes Pro from the start.
+
+2026-10-18: FC-2 repo readiness: release pipeline adopted, `pubspec.yaml`
+at `0.1.0+1` with the lower SDK floor, Dependabot `pub-minor-patch` group,
+the three merged `v0.1.0/*` topic branches deleted, and the placeholder
+test replaced by `ForgeSupabaseConfig` (`lib/src/config/`: the three
+`--dart-define` names, `isConfigured`, `hasGoogle`, key-free `toString`)
+with its tests. No RC cut yet: the first one proves the pipeline when FC-3
+lands. The ticket map for v0.1.0 is FC-3..FC-12 (see CHEESE-57's 2026-10-18
+comment for the order).
 
 ## Next actions
 
-1. **Repo readiness** (own tickets): adopt the release pipeline (forge-ui PR
-   #6 is the model), set `pubspec.yaml` to `0.1.0+1` with the floor
-   `sdk: ^3.13.2` / `flutter: ">=3.47.2"` (CI's 3.47.5 Dart is 3.13.4, but
-   a lower floor costs nothing), add a `pub` Dependabot group, delete the
-   merged topic branches and `v0.0.1/main` (ruleset-toggle runbook), replace
-   the placeholder test.
-2. **v0.1.0** (spec milestone 3), as FC tickets ordered by dependency:
-   config + client wrapper and session stream; Google sign-in; email/password
-   with confirmation and reset (templates, deep link); identity linking;
-   `accounts` migration, trigger, `forge_account_active()`, `set_username()`;
-   `entries` shape and the repository helper with sync listing;
-   `deleteAccount()` + purge function + `pg_cron` retry; request and confirm
-   Edge Functions; `bin/sync_supabase.dart` + drift check; privacy template
-   and inventory. Cut RCs as each lands; cheesy-scribe `v0.3.0/main`
-   consumes them.
-3. forge-ui v0.2 (FU) ships the sign-in panel/screen, account settings,
-   typed confirm sheet and provider branding alongside, so shape the public
-   API with those callbacks in mind (see the spec's `ForgeAccountSettings`
-   sketch).
+1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
+   client wrapper + session stream (extends `ForgeSupabaseConfig`), FC-4
+   Google sign-in, FC-5 email/password, FC-6 identity linking, FC-7
+   `accounts` migration + functions, FC-8 `entries` template + repository
+   helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
+   and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,
+   FC-12 privacy templates. Cut an RC as soon as FC-3 lands (proves the
+   pipeline) and after each ticket cheesy-scribe `v0.3.0/main` needs.
+2. forge-ui v0.2 (FU-2..6) ships the sign-in panel/screen, account
+   settings, typed confirm sheet and provider branding alongside, so shape
+   the public API with those callbacks in mind (see the spec's
+   `ForgeAccountSettings` sketch).
 
 ## Open items (repo and process)
 
-- **Release pipeline** not adopted yet (see Next actions 1).
 - **`v0.0.1/main` still exists.** The `release-branches` ruleset blocks
   deleting any `v*/main` branch; the org `branch-protection-ruleset.md` has
   the disable–delete–re-enable runbook (used in cheesy-scribe and forge-ui
-  on 2026-10-16).
+  on 2026-10-16). Toggling the ruleset needs Tim's explicit yes (FC-2 left
+  it).
 - **Dependabot targets `main`**, which bypasses the release-branch flow. The
   org pattern (cheesy-scribe CHEESE-53): leave its PRs open against `main`
   and bundle the updates on the release branch before the final bump.
-- **Placeholder test.** `test/forge_core_test.dart` exists only because
-  `flutter test` fails with no tests. Replace it with real tests in v0.1.0.
 - **Supabase extensions.** Confirm `pg_cron`, `pg_net` and Vault are
   available on the real project before the purge migration lands.
