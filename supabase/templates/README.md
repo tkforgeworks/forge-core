@@ -2,9 +2,15 @@
 
 The four mails Supabase Auth sends for an app on `forge_core`, written in
 the tkforgeworks voice and styled inline (email clients ignore stylesheets).
-`{{ .ConfirmationURL }}` is the link Supabase builds, including the app's
-`redirect_to`; `{{ .SiteURL }}` is the project's Site URL, shown as a
-small header. No images, so nothing loads from anywhere.
+Each button links to `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=…`
+(FC-13): the app's redirect URL (what it sent as `redirect_to`, which must
+be an `https` App Link on the allow list) with the verification token, so
+the tap opens the app directly and `forge_core` verifies the token;
+nothing goes through GoTrue's `/verify` redirect, whose browser tab stayed
+behind in mail clients. `type` is Supabase's verification type for the
+template (`signup`, `recovery`, `email_change`, `magiclink`).
+`{{ .SiteURL }}` is the project's Site URL, shown as a small header. No
+images, so nothing loads from anywhere.
 
 | File | Supabase template | Sent by |
 | --- | --- | --- |

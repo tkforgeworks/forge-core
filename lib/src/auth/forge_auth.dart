@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import 'forge_auth_result.dart';
@@ -64,6 +67,58 @@ abstract class ForgeAuth {
   /// Ends the session on this device, or on every device with [everywhere]
   /// (account deletion uses that). Never touches the app's own storage.
   Future<void> signOut({bool everywhere = false});
+
+  /// Completes a confirmation or reset mail link that opened the app
+  /// (FC-13): the templates link to the app's redirect URL with
+  /// `token_hash` and `type`, and this verifies the token with the server.
+  /// Null when [link] carries no token (a link this package did not make);
+  /// otherwise the result, which on success also reaches [changes] as
+  /// `signedIn` or `passwordRecovery`, and on failure as
+  /// [ForgeAuthEvent.mailLinkFailed]. The production implementation calls
+  /// this itself for every incoming link, so apps only need it in tests or
+  /// when they route links by hand.
+  Future<ForgeAuthResult?> handleLink(Uri link);
+}
+
+/// The token a mail link carries, when it is one of ours (FC-13):
+/// `?token_hash=…&type=signup|recovery|email_change|magiclink|…`, appended
+/// to the app's redirect URL by `supabase/templates/*.html`.
+@immutable
+class ForgeMailLink {
+  const ForgeMailLink({required this.tokenHash, required this.type});
+
+  /// Null when [uri] has no token hash and type.
+  static ForgeMailLink? parse(Uri uri) {
+    final tokenHash = uri.queryParameters['token_hash'];
+    final type = uri.queryParameters['type'];
+    if (tokenHash == null ||
+        tokenHash.isEmpty ||
+        type == null ||
+        type.isEmpty) {
+      return null;
+    }
+    return ForgeMailLink(tokenHash: tokenHash, type: type);
+  }
+
+  final String tokenHash;
+
+  /// Supabase's verification type, as the template wrote it.
+  final String type;
+
+  /// A password-reset link: verifying it yields `passwordRecovery`.
+  bool get isPasswordReset => type == 'recovery';
+
+  @override
+  bool operator ==(Object other) =>
+      other is ForgeMailLink &&
+      other.tokenHash == tokenHash &&
+      other.type == type;
+
+  @override
+  int get hashCode => Object.hash(tokenHash, type);
+
+  @override
+  String toString() => 'ForgeMailLink($type)';
 }
 
 /// [ForgeAuth] over a Supabase client. [google] is null when the build has
@@ -72,15 +127,24 @@ abstract class ForgeAuth {
 /// confirmation and reset mails send the user back to (the app's custom
 /// scheme).
 class SupabaseForgeAuth implements ForgeAuth {
-  SupabaseForgeAuth(this._auth, {this._google, String emailRedirectUrl = ''})
-    : assert(
-        isValidRedirectUrl(emailRedirectUrl),
-        'emailRedirectUrl "$emailRedirectUrl" is not a valid URL. A scheme '
-        'may only contain letters, digits, "+", "-" and ".", so an '
-        'application id with an underscore cannot be used as is: drop '
-        'the underscore (com.example.myapp://auth-callback).',
-      ),
-      _redirect = emailRedirectUrl.isEmpty ? null : emailRedirectUrl;
+  /// [links] is the stream of URIs that open the app (app_links'
+  /// `uriLinkStream`, which on mobile includes the one the app was launched
+  /// with); every mail link on it is completed with [handleLink].
+  SupabaseForgeAuth(
+    this._auth, {
+    this._google,
+    String emailRedirectUrl = '',
+    Stream<Uri>? links,
+  }) : assert(
+         isValidRedirectUrl(emailRedirectUrl),
+         'emailRedirectUrl "$emailRedirectUrl" is not a valid URL. A scheme '
+         'may only contain letters, digits, "+", "-" and ".", so an '
+         'application id with an underscore cannot be used as is: drop '
+         'the underscore (com.example.myapp://auth-callback).',
+       ),
+       _redirect = emailRedirectUrl.isEmpty ? null : emailRedirectUrl {
+    _links = links?.listen((uri) => unawaited(handleLink(uri)));
+  }
 
   /// Whether [url] can serve as the mails' redirect: empty (the project's
   /// Site URL), or a URL both Dart and GoTrue can parse. GoTrue silently
@@ -97,6 +161,10 @@ class SupabaseForgeAuth implements ForgeAuth {
   final sb.GoTrueClient _auth;
   final GoogleIdTokenSource? _google;
   final String? _redirect;
+  StreamSubscription<Uri>? _links;
+
+  /// States this class adds to Supabase's own: mail links that failed.
+  final _extra = StreamController<ForgeAuthState>.broadcast();
 
   @override
   ForgeAuthState get current => ForgeAuthState(
@@ -107,7 +175,67 @@ class SupabaseForgeAuth implements ForgeAuth {
   @override
   Stream<ForgeAuthState> get changes async* {
     yield current;
-    yield* _auth.onAuthStateChange.map(mapState);
+    yield* _merge(_auth.onAuthStateChange.map(mapState), _extra.stream);
+  }
+
+  /// Stops watching links. Apps live as long as the process; tests call it.
+  Future<void> dispose() async {
+    await _links?.cancel();
+    await _extra.close();
+  }
+
+  @override
+  Future<ForgeAuthResult?> handleLink(Uri link) async {
+    final mail = ForgeMailLink.parse(link);
+    if (mail == null) return null;
+    final type = _otpType(mail.type);
+    final result = type == null
+        ? ForgeAuthFailure(
+            ForgeAuthError.unknown,
+            'unknown mail link type "${mail.type}"',
+          )
+        : await _guard(() async {
+            final response = await _auth.verifyOTP(
+              tokenHash: mail.tokenHash,
+              type: type,
+            );
+            return _success(response.user);
+          });
+    if (result is ForgeAuthFailure && !_extra.isClosed) {
+      _extra.add(
+        ForgeAuthState(
+          event: ForgeAuthEvent.mailLinkFailed,
+          session: current.session,
+          error: result.error,
+        ),
+      );
+    }
+    return result;
+  }
+
+  /// The `type` a template wrote → Supabase's. Null for anything else.
+  static sb.OtpType? _otpType(String type) => switch (type) {
+    'signup' => sb.OtpType.signup,
+    'invite' => sb.OtpType.invite,
+    'magiclink' => sb.OtpType.magiclink,
+    'recovery' => sb.OtpType.recovery,
+    'email_change' => sb.OtpType.emailChange,
+    'email' => sb.OtpType.email,
+    _ => null,
+  };
+
+  static Stream<T> _merge<T>(Stream<T> a, Stream<T> b) {
+    late final StreamController<T> out;
+    StreamSubscription<T>? subA;
+    StreamSubscription<T>? subB;
+    out = StreamController<T>(
+      onListen: () {
+        subA = a.listen(out.add, onError: out.addError);
+        subB = b.listen(out.add, onError: out.addError);
+      },
+      onCancel: () => Future.wait([?subA?.cancel(), ?subB?.cancel()]),
+    );
+    return out.stream;
   }
 
   @override

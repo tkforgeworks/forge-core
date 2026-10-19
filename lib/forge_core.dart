@@ -8,7 +8,7 @@ library;
 
 export 'src/account/forge_account.dart';
 export 'src/account/forge_accounts.dart' show ForgeAccounts;
-export 'src/auth/forge_auth.dart' show ForgeAuth;
+export 'src/auth/forge_auth.dart' show ForgeAuth, ForgeMailLink;
 export 'src/auth/forge_auth_result.dart';
 export 'src/auth/forge_session.dart';
 export 'src/auth/google_id_token_source.dart'

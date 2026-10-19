@@ -226,6 +226,15 @@ class FakeForgeAuth implements ForgeAuth {
   int linkGoogleCalls = 0;
   final List<ForgeIdentity> unlinks = [];
 
+  /// What [handleLink] returns for a link that carries a token. Default:
+  /// signs [fakeSession] in (`signedIn`, or `passwordRecovery` for a
+  /// `type=recovery` link); a [ForgeAuthFailure] is also emitted as
+  /// [ForgeAuthEvent.mailLinkFailed], as the real stream would.
+  ForgeAuthResult? linkResult;
+
+  /// Every link handed to [handleLink], token or not.
+  final List<Uri> links = [];
+
   /// What the app asked for, in order.
   final List<(String, String)> signUps = [];
   final List<(String, String)> signIns = [];
@@ -271,6 +280,37 @@ class FakeForgeAuth implements ForgeAuth {
   void startPasswordRecovery(ForgeSession session) => emit(
     ForgeAuthState(event: ForgeAuthEvent.passwordRecovery, session: session),
   );
+
+  /// Shorthand: a mail link opened the app and could not be verified.
+  void failMailLink([ForgeAuthError error = ForgeAuthError.linkExpired]) =>
+      emit(
+        ForgeAuthState(
+          event: ForgeAuthEvent.mailLinkFailed,
+          session: _current.session,
+          error: error,
+        ),
+      );
+
+  @override
+  Future<ForgeAuthResult?> handleLink(Uri link) async {
+    links.add(link);
+    final mail = ForgeMailLink.parse(link);
+    if (mail == null) return null;
+    final result = linkResult ?? const ForgeAuthSuccess(fakeSession);
+    switch (result) {
+      case ForgeAuthSuccess(:final session):
+        if (mail.isPasswordReset) {
+          startPasswordRecovery(session);
+        } else {
+          signIn(session);
+        }
+      case ForgeAuthFailure(:final error):
+        failMailLink(error);
+      case ForgeAuthEmailSent() || ForgeAuthCancelled():
+        break;
+    }
+    return result;
+  }
 
   @override
   Future<ForgeAuthResult> signInWithGoogle() async {
