@@ -131,4 +131,48 @@ void main() {
     expect((await auth.changes.first).session, tim);
     expect(auth.current.isSignedIn, isTrue);
   });
+
+  test('handleLink signs in, recovers or fails as scripted', () async {
+    final fake = FakeForgeAuth();
+    addTearDown(fake.dispose);
+    final states = <ForgeAuthState>[];
+    final sub = fake.changes.skip(1).listen(states.add);
+    addTearDown(sub.cancel);
+    // The async* stream reaches the controller one microtask later.
+    await Future<void>.delayed(Duration.zero);
+    const base = 'https://example.com/apps/demo/auth/';
+
+    expect(await fake.handleLink(Uri.parse('$base?code=abc')), isNull);
+    expect(fake.links, [Uri.parse('$base?code=abc')]);
+
+    var result = await fake.handleLink(
+      Uri.parse('$base?token_hash=t1&type=signup'),
+    );
+    expect(result, const ForgeAuthSuccess(FakeForgeAuth.fakeSession));
+    expect(fake.current.isSignedIn, isTrue);
+
+    result = await fake.handleLink(
+      Uri.parse('$base?token_hash=t2&type=recovery'),
+    );
+    expect(result, isA<ForgeAuthSuccess>());
+
+    fake.linkResult = const ForgeAuthFailure(
+      ForgeAuthError.linkExpired,
+      'expired',
+    );
+    result = await fake.handleLink(
+      Uri.parse('$base?token_hash=t3&type=signup'),
+    );
+    expect((result as ForgeAuthFailure).error, ForgeAuthError.linkExpired);
+    expect(fake.links.length, 4);
+
+    await Future<void>.delayed(Duration.zero);
+    expect(states.map((s) => s.event), [
+      ForgeAuthEvent.signedIn,
+      ForgeAuthEvent.passwordRecovery,
+      ForgeAuthEvent.mailLinkFailed,
+    ]);
+    expect(states.last.error, ForgeAuthError.linkExpired);
+    expect(states.last.session, FakeForgeAuth.fakeSession);
+  });
 }

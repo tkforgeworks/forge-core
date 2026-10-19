@@ -8,7 +8,7 @@
         Tap the button on your phone to sign in. The link works once and expires in an hour.
       </td></tr>
       <tr><td style="padding:24px 28px;">
-        <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 22px;border-radius:8px;background:#b3641b;color:#ffffff;text-decoration:none;font-weight:600;">Sign in</a>
+        <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=magiclink" style="display:inline-block;padding:12px 22px;border-radius:8px;background:#b3641b;color:#ffffff;text-decoration:none;font-weight:600;">Sign in</a>
       </td></tr>
       <tr><td style="padding:0 28px 28px;font-size:13px;line-height:1.5;color:#8a7a5f;">
         If you did not ask for this, ignore it.

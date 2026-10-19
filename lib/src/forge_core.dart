@@ -1,3 +1,4 @@
+import 'package:app_links/app_links.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import 'account/forge_accounts.dart';
@@ -22,12 +23,17 @@ class ForgeCore {
   /// Wraps an already-created client. [initialize] is the usual path; this
   /// one is for tests and for apps that set Supabase up themselves. Pass
   /// [google] to offer Google sign-in (tests pass a fake source).
-  ForgeCore.withClient(this.client, this.config, {GoogleIdTokenSource? google})
-    : auth = SupabaseForgeAuth(
-        client.auth,
-        google: google,
-        emailRedirectUrl: config.authRedirectUrl,
-      ) {
+  ForgeCore.withClient(
+    this.client,
+    this.config, {
+    GoogleIdTokenSource? google,
+    Stream<Uri>? links,
+  }) : auth = SupabaseForgeAuth(
+         client.auth,
+         google: google,
+         emailRedirectUrl: config.authRedirectUrl,
+         links: links,
+       ) {
     accounts = SupabaseForgeAccounts(client, auth);
   }
 
@@ -50,6 +56,10 @@ class ForgeCore {
       google: config.hasGoogle
           ? PluginGoogleIdTokenSource(serverClientId: config.googleWebClientId)
           : null,
+      // Mail links carry their token (FC-13); supabase_flutter watches the
+      // same stream for the `code` links of the older redirect flow and
+      // ignores these, so each link is handled exactly once.
+      links: AppLinks().uriLinkStream,
     );
   }
 

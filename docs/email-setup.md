@@ -22,11 +22,49 @@ What an app on `forge_core` needs before `signUpWithEmail`,
    included, or the custom scheme `<applicationId>://auth-callback`; see
    "App" below).
 4. **Templates**: paste `supabase/templates/*.html` into Authentication →
-   Email Templates (see that folder's README for subjects).
+   Email Templates (see that folder's README for subjects). Since FC-13 the
+   buttons link to the app's redirect URL with the verification token
+   (`{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=…`) instead of
+   `{{ .ConfirmationURL }}`; re-paste all four when moving to that
+   version.
 
 ## App
 
-Two kinds of redirect work. **Prefer an HTTPS Android App Link** on a site
+### Mail links carry their token (FC-13)
+
+The templates no longer link to GoTrue's `/verify` endpoint. That endpoint
+answers with a 303 to the app's redirect URL, and on Android the mail
+client opens a browser tab for the hop which then stays behind showing the
+303 body (a bare "See Other" line), whatever the redirect is (cheesy-scribe
+rc.3 with a custom scheme, rc.9 with an App Link). Instead each button is
+`{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=<type>`: the app's own
+redirect URL with the verification token. With an App Link as the redirect
+URL, Android resolves the tap to the app before any browser opens, so
+nothing is left behind anywhere.
+
+- `SupabaseForgeAuth` watches app_links' `uriLinkStream` (cold and warm
+  starts) and completes every link that carries `token_hash` + `type` with
+  `verifyOTP`. Success reaches `changes` as `signedIn`, or
+  `passwordRecovery` for `type=recovery`, exactly as the 303 flow did;
+  failure (expired, used, malformed) as `ForgeAuthEvent.mailLinkFailed`
+  with `ForgeAuthState.error` (`linkExpired` for the common case). **Apps
+  must handle `mailLinkFailed`**: show copy and offer "send again".
+  `ForgeAuth.handleLink(Uri)` does the same by hand; `ForgeMailLink.parse`
+  recognises such a link.
+- The `type` values are Supabase's verification types: `signup`
+  (confirmation.html), `recovery` (recovery.html), `email_change`,
+  `magiclink`. `verifyOTP` with a token hash needs nothing else.
+- `{{ .RedirectTo }}` is what the app sent as `redirect_to`, validated
+  against the allow list (otherwise the Site URL), so **the redirect URL
+  stays on the allow list** and it must be `https`: GoTrue renders the
+  templates with Go's `html/template`, which rewrites a custom-scheme URL
+  in an `href` to `#ZgotmplZ`. A custom scheme therefore no longer works
+  with these templates; use an App Link.
+- supabase_flutter keeps handling links with `code=` or `access_token=`
+  (mails sent before the template switch, OAuth redirects) and ignores
+  token links, so each link is handled once.
+
+Two kinds of redirect URL can be declared in the manifest. **Prefer an HTTPS Android App Link** on a site
 you control (cheesy-scribe moved to one in its 0.3.0 RCs): GoTrue answers
 the mail link with a 303 to it, Android hands that straight to the app
 with nothing left behind in the mail client's browser, and anyone without
@@ -68,10 +106,11 @@ app opens, and a phone without the app shows an error.
   still reaches the app by package name.
 - A go_router app receives the link as a platform route carrying the whole
   URI, with the trailing slash dropped; a top-level `redirect` that matches
-  scheme, host and path prefix sends it to the account screen.
-  `supabase_flutter` reads the code from the same link on its own.
+  scheme, host and path prefix sends it to the account screen. forge_core
+  completes the link on its own (token links) or supabase_flutter does
+  (`code` links).
 
-### Custom scheme
+### Custom scheme (not for the token-link templates)
 
 - Pass the scheme to the config:
   `ForgeSupabaseConfig.fromEnvironment(authRedirectUrl:
