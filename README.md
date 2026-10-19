@@ -82,8 +82,10 @@ await core.auth.sendPasswordReset(email);         // opening the link → passwo
 await core.auth.updatePassword(newPassword);      // while signed in
 ```
 
-Pass the app's custom scheme as `authRedirectUrl` so the links open the
-app (a valid URL scheme: an application id with an underscore drops it,
+Pass the app's mail redirect as `authRedirectUrl` so the links open the
+app: an HTTPS Android App Link on the org site (preferred,
+`https://<site>/apps/<app>/auth/`) or a custom scheme (a valid URL scheme:
+an application id with an underscore drops it,
 `com.example.myapp://auth-callback`); the Supabase side (Resend as SMTP, confirmation on, templates,
 redirect allow list) and the Android intent filter are in
 [`docs/email-setup.md`](docs/email-setup.md).

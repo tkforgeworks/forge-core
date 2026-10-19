@@ -86,7 +86,8 @@ needed for these.
 Auth → Email Templates (paste `supabase/templates/*.html`; subjects in that
 folder's README), SMTP (Resend), Providers (Google with the web client;
 email with confirmation; manual linking on), URL configuration (Site URL and
-the app's `<applicationId>://auth-callback` redirect).
+the app's redirect URL: its App Link, or `<applicationId>://auth-callback`,
+see `email-setup.md`).
 
 ## 5. Verify
 
