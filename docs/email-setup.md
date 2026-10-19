@@ -17,12 +17,61 @@ What an app on `forge_core` needs before `signUpWithEmail`,
    (Pro).
 3. **URL configuration**: Site URL = the app's privacy policy page (what a
    template link falls back to when no `redirect_to` is sent); the app's
-   custom scheme `<applicationId>://auth-callback` in the redirect allow
-   list.
+   redirect URL in the redirect allow list, exactly as the app sends it
+   (an App Link such as `https://<site>/apps/<app>/auth/`, trailing slash
+   included, or the custom scheme `<applicationId>://auth-callback`; see
+   "App" below).
 4. **Templates**: paste `supabase/templates/*.html` into Authentication →
    Email Templates (see that folder's README for subjects).
 
 ## App
+
+Two kinds of redirect work. **Prefer an HTTPS Android App Link** on a site
+you control (cheesy-scribe moved to one in its 0.3.0 RCs): GoTrue answers
+the mail link with a 303 to it, Android hands that straight to the app
+with nothing left behind in the mail client's browser, and anyone without
+the app lands on a real page. A custom scheme also works, but GoTrue's 303
+body (a bare "See Other" line) stays on screen in the mail client after the
+app opens, and a phone without the app shows an error.
+
+### App Link (preferred)
+
+- The site serves `/.well-known/assetlinks.json` (plain JSON, no redirect)
+  naming the application id and the SHA-256 fingerprints of every
+  certificate that signs shipped builds: the Play app-signing key *and* the
+  upload key (Play Console → Test and release → App integrity; public
+  values). A landing page at the callback path explains the link and points
+  to the store, tolerating whatever GoTrue appends (`?code=…` or
+  `#error=…`). The TKForgeWorks website README ("App Links") has the
+  template.
+- Pass the URL to the config, trailing slash included if the page has one:
+  `ForgeSupabaseConfig.fromEnvironment(authRedirectUrl:
+  'https://<site>/apps/<app>/auth/')`, and put the same string in the
+  allow list.
+- Declare it in `android/app/src/main/AndroidManifest.xml`, inside the main
+  `<activity>`, with `autoVerify` so Android checks the statement file at
+  install:
+
+  ```xml
+  <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW"/>
+      <category android:name="android.intent.category.DEFAULT"/>
+      <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="https" android:host="<site>"
+            android:pathPrefix="/apps/<app>/auth"/>
+  </intent-filter>
+  ```
+
+- Builds signed with a key that is not in `assetlinks.json` (CI's
+  debug-signed fallbacks, local debug builds) do not verify, so there the
+  link opens the landing page instead. Expected; the page's `intent:` link
+  still reaches the app by package name.
+- A go_router app receives the link as a platform route carrying the whole
+  URI, with the trailing slash dropped; a top-level `redirect` that matches
+  scheme, host and path prefix sends it to the account screen.
+  `supabase_flutter` reads the code from the same link on its own.
+
+### Custom scheme
 
 - Pass the scheme to the config:
   `ForgeSupabaseConfig.fromEnvironment(authRedirectUrl:

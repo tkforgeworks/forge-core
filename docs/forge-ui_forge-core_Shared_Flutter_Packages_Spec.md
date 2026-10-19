@@ -169,7 +169,7 @@ Material 3 is the base. If iOS later needs a more native feel, the platform adju
 
 **Email and password:**
 
-- Confirmation is required before a session is usable (Supabase default); the confirmation and password-reset emails carry a link whose redirect is the app's custom scheme (`<applicationId>://auth-callback`), registered as an additional redirect URL on the project, so `supabase_flutter` completes the flow in-app. Links expire; the screens offer "send again".
+- Confirmation is required before a session is usable (Supabase default); the confirmation and password-reset emails carry a link whose redirect is the app's own URL (an HTTPS Android App Link on the org site, preferred since cheesy-scribe 0.3.0, or the custom scheme `<applicationId>://auth-callback`), registered as an additional redirect URL on the project, so `supabase_flutter` completes the flow in-app. Links expire; the screens offer "send again".
 - Auth email goes through **Resend as the project's custom SMTP** from a tkforgeworks.com sender. The built-in mailer is capped at a few messages an hour per recipient and sends from a shared domain. Templates are branded once per project from `forge-core`'s copies.
 - Password rules: Supabase's minimum length (8) with the leaked-password check on.
 
