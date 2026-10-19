@@ -257,18 +257,25 @@ final after cheesy-scribe's device pass (CHEESE-67) pins and proves the
 RCs. Remaining before final: Tim's `RESEND_API_KEY` + `FORGE_MAIL_FROM`
 function secrets, and anything the app adoption exposes.
 
+- 2026-10-19: **FC-13** (`v0.1.0-rc.12`): mail links carry the verification
+  token (`{{ .RedirectTo }}?token_hash=…&type=…`) and `SupabaseForgeAuth`
+  completes them from app_links' stream (`handleLink`, `ForgeMailLink`,
+  `ForgeAuthEvent.mailLinkFailed` + `ForgeAuthState.error`; `app_links` is
+  a direct dependency). Reason: GoTrue's `/verify` 303 left its body as a
+  tab in Gmail's browser whatever the redirect was (cheesy-scribe rc.3 and
+  rc.9). The templates need an https App Link redirect (`html/template`
+  rewrites a custom-scheme `href`). cheesy-scribe rc.10 and rc.11 verified
+  it on a device. **v0.1.0 final cut from rc.12's code** (this status
+  change only), re-pinned by cheesy-scribe 0.3.0.
+
 ## Next actions
 
-1. **v0.1.0** (spec milestone 3), FC tickets in dependency order: FC-3
-   (done) client wrapper + session stream, FC-4 (done) Google sign-in,
-   FC-5 (done) email/password, FC-6 (done) identity linking, FC-7 (done),
-   FC-8 (done), FC-9 (done, deployed), FC-10 (done, deployed; mail secrets
-   pending), FC-11 (done), FC-12 (done). All v0.1.0 tickets are done.
-   `accounts` migration + functions, FC-8 `entries` template + repository
-   helper, FC-9 `deleteAccount()` + purge + `pg_cron`, FC-10 web request
-   and confirm functions, FC-11 `bin/sync_supabase.dart` + drift check,
-   FC-12 privacy templates. Cut an RC as soon as FC-3 lands (proves the
-   pipeline) and after each ticket cheesy-scribe `v0.3.0/main` needs.
+1. **v0.1.0 released** (2026-10-19; FC-3..13 all done, the Supabase
+   project for cheesy-scribe deployed and verified). Next work opens a new
+   release branch (`v0.1.1/main` or `v0.2.0/main`) from `main`. Candidates:
+   email change (templates exist, no API yet), Apple sign-in when an iOS
+   app exists, a `keep_newer` emulation in `FakeForgeEntriesRepository`
+   (cheesy-scribe's race test subclasses the fake for it).
 2. forge-ui v0.2 (FU-2..6) ships the sign-in panel/screen, account
    settings, typed confirm sheet and provider branding alongside, so shape
    the public API with those callbacks in mind (see the spec's
