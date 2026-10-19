@@ -13,3 +13,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      pub-minor-patch:
+        update-types: [minor, patch]
